@@ -1,0 +1,7 @@
+ebin/organic/
+ebin/*.boot
+ebin/*.script
+ebin/*.beam
+erl_crash.dump
+*~
+.*.swp
