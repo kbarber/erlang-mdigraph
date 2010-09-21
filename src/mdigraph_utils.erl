@@ -21,7 +21,7 @@
 %% 
 %% %CopyrightEnd%
 %%
--module(digraph_utils).
+-module(mdigraph_utils).
 
 %%% Operations on directed (and undirected) graphs.
 %%%
