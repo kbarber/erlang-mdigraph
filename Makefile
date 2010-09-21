@@ -20,7 +20,7 @@ test: all
 		-smp auto \
 		-noshell \
 		-noinput \
-		-s run_tests \
+		-s mdigraph_runtests \
 		start
 
 doc:

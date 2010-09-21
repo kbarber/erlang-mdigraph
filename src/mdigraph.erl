@@ -23,7 +23,7 @@
 %%
 -module(mdigraph).
 
--export([new/0, new/1, delete/1, info/1]).
+-export([new/0, new/1, new/2, delete/1, info/1]).
 
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
@@ -73,21 +73,39 @@
 
 -spec new() -> digraph().
 
-new() -> new([]).
+new() -> new(get_random_string(10,"abcdef01234567890"),[]).
 
 -spec new([d_type()]) -> digraph().
 
-new(Type) ->
+new(Type) -> new(get_random_string(10,"abcdef01234567890"),Type).
+
+-spec new(list(),[d_type()]) -> digraph().
+
+new(Name, Type) ->
     case check_type(Type, protected, []) of
-	{Access, Ts} ->
-	    V = ets:new(vertices, [set, Access]),
-	    E = ets:new(edges, [set, Access]),
-	    N = ets:new(neighbours, [bag, Access]),
-	    ets:insert(N, [{'$vid', 0}, {'$eid', 0}]),
+	{_Access, Ts} ->
+        V = list_to_atom("vertices-" ++ Name),
+        E = list_to_atom("edges-" ++ Name),
+        N = list_to_atom("neighbours-" ++ Name),
+	    mnesia:create_table(V, [{type,set}]),
+	    mnesia:create_table(E, [{type,set}]),
+	    mnesia:create_table(N, [{type,bag}]),
+        Fun = fun() ->
+            mnesia:write({N, '$vid', 0}),
+            mnesia:write({N, '$eid', 0})
+        end,
+        {atomic, _} = mnesia:transaction(Fun),
 	    set_type(Ts, #digraph{vtab=V, etab=E, ntab=N});
 	error ->
 	    erlang:error(badarg)
     end.
+
+get_random_string(Length, AllowedChars) ->
+    lists:foldl(fun(_, Acc) ->
+                        [lists:nth(random:uniform(length(AllowedChars)),
+                                   AllowedChars)]
+                            ++ Acc
+                end, [], lists:seq(1, Length)).
 
 %%
 %% Check type of graph
@@ -121,9 +139,9 @@ set_type([], G) -> G.
 -spec delete(digraph()) -> 'true'.
 
 delete(G) ->
-    ets:delete(G#digraph.vtab),
-    ets:delete(G#digraph.etab),
-    ets:delete(G#digraph.ntab).
+    mnesia:delete_table(G#digraph.vtab),
+    mnesia:delete_table(G#digraph.etab),
+    mnesia:delete_table(G#digraph.ntab).
 
 -spec info(digraph()) -> [{'cyclicity', d_cyclicity()} |
 			  {'memory', non_neg_integer()} |
@@ -136,8 +154,8 @@ info(G) ->
 		    true  -> cyclic;
 		    false -> acyclic
 		end,
-    Protection = ets:info(VT, protection),
-    Memory = ets:info(VT, memory) + ets:info(ET, memory) + ets:info(NT, memory),
+    Protection = protected,     % TODO: Fake a protection response for now
+    Memory = mnesia:table_info(VT, memory) + mnesia:table_info(ET, memory) + mnesia:table_info(NT, memory),
     [{cyclicity, Cyclicity}, {memory, Memory}, {protection, Protection}].
 
 -spec add_vertex(digraph()) -> vertex().
@@ -168,20 +186,28 @@ del_vertices(G, Vs) ->
 -spec vertex(digraph(), vertex()) -> {vertex(), label()} | 'false'.
 
 vertex(G, V) ->
-    case ets:lookup(G#digraph.vtab, V) of
-	[] -> false;
-	[Vertex] -> Vertex
-    end.
+    Fun = fun() ->
+        case mnesia:read(G#digraph.vtab, V) of
+    	[] -> false;
+    	[Vertex] -> Vertex
+        end
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec no_vertices(digraph()) -> non_neg_integer().
 
 no_vertices(G) ->
-    ets:info(G#digraph.vtab, size).
+    mnesia:table_info(G#digraph.vtab, size).
 
 -spec vertices(digraph()) -> [vertex()].
 
 vertices(G) ->
-    ets:select(G#digraph.vtab, [{{'$1', '_'}, [], ['$1']}]).
+    Fun = fun()->
+        mnesia:select(G#digraph.vtab, [{{'$1', '_'}, [], ['$1']}])
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec source_vertices(digraph()) -> [vertex()].
 
@@ -196,36 +222,44 @@ sink_vertices(G) ->
 -spec in_degree(digraph(), vertex()) -> non_neg_integer().
 
 in_degree(G, V) ->
-    length(ets:lookup(G#digraph.ntab, {in, V})).
+    length(mnesia:read(G#digraph.ntab, {in, V})).
 
 -spec in_neighbours(digraph(), vertex()) -> [vertex()].
 
 in_neighbours(G, V) ->
     ET = G#digraph.etab,
     NT = G#digraph.ntab,
-    collect_elems(ets:lookup(NT, {in, V}), ET, 2).
+    collect_elems(mnesia:read(NT, {in, V}), ET, 2).
 
 -spec in_edges(digraph(), vertex()) -> [edge()].
 
 in_edges(G, V) ->
-    ets:select(G#digraph.ntab, [{{{in, V}, '$1'}, [], ['$1']}]).
+    Fun = fun() ->
+        mnesia:select(G#digraph.ntab, [{{{in, V}, '$1'}, [], ['$1']}])
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec out_degree(digraph(), vertex()) -> non_neg_integer().
 
 out_degree(G, V) ->
-    length(ets:lookup(G#digraph.ntab, {out, V})).
+    length(mnesia:read(G#digraph.ntab, {out, V})).
 
 -spec out_neighbours(digraph(), vertex()) -> [vertex()].
 
 out_neighbours(G, V) ->
     ET = G#digraph.etab,
     NT = G#digraph.ntab,
-    collect_elems(ets:lookup(NT, {out, V}), ET, 3).
+    collect_elems(mnesia:read(NT, {out, V}), ET, 3).
 
 -spec out_edges(digraph(), vertex()) -> [edge()].
 
 out_edges(G, V) ->
-    ets:select(G#digraph.ntab, [{{{out, V}, '$1'}, [], ['$1']}]).
+    Fun = fun() ->
+        mnesia:select(G#digraph.ntab, [{{{out, V}, '$1'}, [], ['$1']}])
+    end,
+    {atomic,Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec add_edge(digraph(), vertex(), vertex()) ->
 	 edge() | {'error', add_edge_err_rsn()}.
@@ -258,23 +292,31 @@ del_edges(G, Es) ->
 -spec no_edges(digraph()) -> non_neg_integer().
 
 no_edges(G) ->
-    ets:info(G#digraph.etab, size).
+    mnesia:table_info(G#digraph.etab, size).
 
 -spec edges(digraph()) -> [edge()].
 
 edges(G) ->
-    ets:select(G#digraph.etab, [{{'$1', '_', '_', '_'}, [], ['$1']}]).
+    Fun = fun()->
+        mnesia:select(G#digraph.etab, [{{'$1', '_', '_', '_'}, [], ['$1']}])
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec edges(digraph(), vertex()) -> [edge()].
 
 edges(G, V) ->
-    ets:select(G#digraph.ntab, [{{{out, V},'$1'}, [], ['$1']},
-				{{{in, V}, '$1'}, [], ['$1']}]).
+    Fun = fun()->
+        ets:select(G#digraph.ntab, [{{{out, V},'$1'}, [], ['$1']},
+				{{{in, V}, '$1'}, [], ['$1']}])
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 -spec edge(digraph(), edge()) -> {edge(),vertex(),vertex(),label()} | 'false'.
 
 edge(G, E) ->
-    case ets:lookup(G#digraph.etab,E) of
+    case mnesia:read(G#digraph.etab,E) of
 	[] -> false;
 	[Edge] -> Edge
     end.
@@ -285,11 +327,15 @@ edge(G, E) ->
 -spec new_edge_id(digraph()) -> nonempty_improper_list('$e', non_neg_integer()).
 
 new_edge_id(G) ->
-    NT = G#digraph.ntab,
-    [{'$eid', K}] = ets:lookup(NT, '$eid'),
-    true = ets:delete(NT, '$eid'),
-    true = ets:insert(NT, {'$eid', K+1}),
-    ['$e' | K].
+    Fun = fun() ->
+        NT = G#digraph.ntab,
+        [{'$eid', K}] = mnesia:read(NT, '$eid'),
+        ok = mnesia:delete_object(NT, '$eid', write),
+        ok = mnesia:write({NT, '$eid', K+1}),
+        ['$e' | K]
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 %%
 %% Generate a "unique" vertex identifier (relative to this graph)
@@ -297,15 +343,20 @@ new_edge_id(G) ->
 -spec new_vertex_id(digraph()) -> nonempty_improper_list('$v', non_neg_integer()).
 
 new_vertex_id(G) ->
-    NT = G#digraph.ntab,
-    [{'$vid', K}] = ets:lookup(NT, '$vid'),
-    true = ets:delete(NT, '$vid'),
-    true = ets:insert(NT, {'$vid', K+1}),
-    ['$v' | K].
+    Fun = fun() ->
+        NT = G#digraph.ntab,
+        [{Tab, '$vid', K}] = mnesia:read(NT, '$vid'),
+        ok = mnesia:delete_object(NT, {Tab, '$vid', K}, write),
+        ok = mnesia:write({NT, '$vid', K+1}),
+        ['$v' | K]
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.    
 
 %%
 %% Collect elements for a index in a tuple
 %%
+% TODO: how do I replicate lookup_element easily here?
 collect_elems(Keys, Table, Index) ->
     collect_elems(Keys, Table, Index, []).
 
@@ -317,7 +368,10 @@ collect_elems([], _, _, Acc) -> Acc.
 -spec do_add_vertex({vertex(), label()}, digraph()) -> vertex().
 
 do_add_vertex({V, _Label} = VL, G) ->
-    ets:insert(G#digraph.vtab, VL),
+    Fun = fun()->
+        mnesia:write(G#digraph.vtab, VL, write)
+    end,
+    mnesia:transaction(Fun),
     V.
 
 %%
