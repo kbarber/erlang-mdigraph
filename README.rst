@@ -9,7 +9,7 @@ Installation
 
 Prerequisites
 -------------
-* erlang R14A
+* erlang R14A (although this will probably work on 13B)
   - kernel, stdlib, sasl, mnesia
 
 Compilation
@@ -23,10 +23,17 @@ To clean::
 
   make clean
 
+To create documentation::
+
+  make docs
+
 Usage
 -----
 
-TODO
+This module is a parity match for the core 'digraph' module. Consult that
+modules documentation for a complete function list.
+
+TODO: document differences
 
 Copyright and License
 =====================
