@@ -21,7 +21,7 @@
 %%
 %% %CopyrightEnd%
 %%
--module(digraph).
+-module(mdigraph).
 
 -export([new/0, new/1, delete/1, info/1]).
 
