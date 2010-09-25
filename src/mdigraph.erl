@@ -499,8 +499,12 @@ other_edge_exists(#digraph{etab = ET}, E, V1, V2) ->
 -spec do_insert_edge(edge(), vertex(), vertex(), label(), digraph()) -> edge().
 
 do_insert_edge(E, V1, V2, Label, #digraph{ntab=NT, etab=ET}) ->
-    ets:insert(NT, [{{out, V1}, E}, {{in, V2}, E}]),
-    ets:insert(ET, {E, V1, V2, Label}),
+    Fun = fun() ->
+        mnesia:write({NT, {out, V1}, E}),
+        mnesia:write({NT, {in, V2}, E}),
+        mnesia:write({ET, E, {V1, V2, Label}})
+    end,
+    {atomic, _} = mnesia:transaction(Fun),
     E.
 
 -spec acyclic_add_edge(edge(), vertex(), vertex(), label(), digraph()) ->
