@@ -5,3 +5,5 @@ ebin/*.beam
 erl_crash.dump
 *~
 .*.swp
+.project
+.settings
