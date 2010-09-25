@@ -44,91 +44,105 @@ add_vertex_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
     mdigraph:add_vertex(G),
-    ?debugFmt("~nTables: ~p~nVTAB: ~p~nKeys: ~p~n", 
-        [ mnesia:system_info(tables), G#digraph.vtab, mnesia:transaction(fun() -> mnesia:all_keys(G#digraph.vtab) end) ]
-    ),
     stopped = mnesia:stop().
 
 %% @doc vertex
 vertex_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = mdigraph:add_vertex(G),
-    V2 = mdigraph:vertex(G,V),
-    
-    ?debugFmt("~nV: ~p~nV2: ~p~nKeys: ~p~n", 
-        [ V,V2,mnesia:transaction(fun() -> mnesia:all_keys(G#digraph.vtab) end) ]
-    ),
-    ?assert(V =:= V2).
+    V1 = mdigraph:add_vertex(G),
+    V2 = mdigraph:vertex(G,V1),
+    ?assert({G#digraph.vtab, V1, []} =:= V2),
+    stopped = mnesia:stop().
 
 no_verticies_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    mdigraph:no_vertices(G).
+    mdigraph:no_vertices(G),
+    stopped = mnesia:stop().
 
 %% @doc vertices
 vertices_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    mdigraph:vertices(G).
+    mdigraph:vertices(G),
+    stopped = mnesia:stop().
 
 %% @doc in_degree
 in_degree_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:in_degree(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:in_degree(G,V),
+    stopped = mnesia:stop().
 
 %% @doc in_neighbours
 in_neighbours_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:in_neighbours(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:in_neighbours(G,V),
+    stopped = mnesia:stop().
 
 %% @doc in_neighbours
 in_edges_10_test()->
+    ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:in_edges(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:in_edges(G,V),
+    stopped = mnesia:stop().
 
 %% @doc out_neighbours
 out_degree_10_test()->
+    ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:out_degree(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:out_degree(G,V),
+    stopped = mnesia:stop().
 
 
 %% @doc out_neighbours
 out_neighbours_10_test()->
+    ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:out_neighbours(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:out_neighbours(G,V),
+    stopped = mnesia:stop().
 
 %% @doc out_edges
 out_edges_10_test()->
+    ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo", %TODO
-    mdigraph:out_edges(G,V).
+    V = mdigraph:add_vertex(G),
+    mdigraph:out_edges(G,V),
+    stopped = mnesia:stop().
 
 no_edges_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    mdigraph:no_edges(G).
+    mdigraph:no_edges(G),
+    stopped = mnesia:stop().
 
 edges_10_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    mdigraph:edges(G).
+    mdigraph:edges(G),
+    stopped = mnesia:stop().
 
 edges_20_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo",
-    5 = mdigraph:edges(G, V).
+    V1 = mdigraph:add_vertex(G),
+    V2 = mdigraph:add_vertex(G),
+    E = mdigraph:add_edge(G, V1, V2),
+    mdigraph:edges(G, E),
+    stopped = mnesia:stop().
 
 edge_20_test()->
     ok = mnesia:start(),
     G = mdigraph:new([cyclic]),
-    V = "foo",
-    V = mdigraph:edge(G, V).
+    V1 = mdigraph:add_vertex(G),
+    V2 = mdigraph:add_vertex(G),
+    E = mdigraph:add_edge(G, V1, V2),
+    mdigraph:edge(G, E),
+    stopped = mnesia:stop().

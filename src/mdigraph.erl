@@ -222,14 +222,16 @@ sink_vertices(G) ->
 -spec in_degree(digraph(), vertex()) -> non_neg_integer().
 
 in_degree(G, V) ->
-    length(mnesia:read(G#digraph.ntab, {in, V})).
+    {atomic, A} = mnesia:transaction(fun() -> mnesia:read(G#digraph.ntab, {in, V}) end),
+    length(A).
 
 -spec in_neighbours(digraph(), vertex()) -> [vertex()].
 
 in_neighbours(G, V) ->
     ET = G#digraph.etab,
     NT = G#digraph.ntab,
-    collect_elems(mnesia:read(NT, {in, V}), ET, 2).
+    {atomic, A} = mnesia:transaction(fun() -> mnesia:read(NT, {in, V}) end),
+    collect_elems(A, ET, 2).
 
 -spec in_edges(digraph(), vertex()) -> [edge()].
 
@@ -243,14 +245,22 @@ in_edges(G, V) ->
 -spec out_degree(digraph(), vertex()) -> non_neg_integer().
 
 out_degree(G, V) ->
-    length(mnesia:read(G#digraph.ntab, {out, V})).
+    Fun = fun() ->    
+        mnesia:read(G#digraph.ntab, {out, V})
+    end,
+    {atomic, A} = mnesia:transaction(Fun),
+    length(A).
 
 -spec out_neighbours(digraph(), vertex()) -> [vertex()].
 
 out_neighbours(G, V) ->
     ET = G#digraph.etab,
     NT = G#digraph.ntab,
-    collect_elems(mnesia:read(NT, {out, V}), ET, 3).
+    Fun = fun() ->    
+        mnesia:read(NT, {out, V})
+    end,
+    {atomic, A} = mnesia:transaction(Fun),
+    collect_elems(A, ET, 3).
 
 -spec out_edges(digraph(), vertex()) -> [edge()].
 
@@ -316,9 +326,14 @@ edges(G, V) ->
 -spec edge(digraph(), edge()) -> {edge(),vertex(),vertex(),label()} | 'false'.
 
 edge(G, E) ->
-    case mnesia:read(G#digraph.etab,E) of
-	[] -> false;
-	[Edge] -> Edge
+    Fun = fun()->
+        mnesia:read(G#digraph.etab,E)
+    end,
+    {atomic, A} = mnesia:transaction(Fun),
+
+    case A of
+        [] -> false;
+        [Edge] -> Edge
     end.
 
 %%
@@ -329,8 +344,8 @@ edge(G, E) ->
 new_edge_id(G) ->
     Fun = fun() ->
         NT = G#digraph.ntab,
-        [{'$eid', K}] = mnesia:read(NT, '$eid'),
-        ok = mnesia:delete_object(NT, '$eid', write),
+        [{NT, '$eid', K}] = mnesia:read(NT, '$eid'),
+        ok = mnesia:delete_object(NT, {NT,'$eid',K}, write),
         ok = mnesia:write({NT, '$eid', K+1}),
         ['$e' | K]
     end,
@@ -367,9 +382,9 @@ collect_elems([], _, _, Acc) -> Acc.
 
 -spec do_add_vertex({vertex(), label()}, digraph()) -> vertex().
 
-do_add_vertex({V, _Label} = VL, G) ->
+do_add_vertex({V, Label}, G) ->
     Fun = fun()->
-        mnesia:write(G#digraph.vtab, VL, write)
+        mnesia:write(G#digraph.vtab, {G#digraph.vtab, V, Label}, write)
     end,
     mnesia:transaction(Fun),
     V.
