@@ -73,7 +73,7 @@
 
 -spec new() -> digraph().
 
-new() -> new(get_random_string(10,"abcdef01234567890"),[]).
+new() -> new([]).
 
 -spec new([d_type()]) -> digraph().
 
@@ -204,7 +204,7 @@ no_vertices(G) ->
 
 vertices(G) ->
     Fun = fun()->
-        mnesia:select(G#digraph.vtab, [{{'$1', '_'}, [], ['$1']}])
+        mnesia:select(G#digraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}])
     end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
@@ -308,7 +308,7 @@ no_edges(G) ->
 
 edges(G) ->
     Fun = fun()->
-        mnesia:select(G#digraph.etab, [{{'$1', '_', '_', '_'}, [], ['$1']}])
+        mnesia:select(G#digraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}])
     end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
@@ -317,7 +317,7 @@ edges(G) ->
 
 edges(G, V) ->
     Fun = fun()->
-        ets:select(G#digraph.ntab, [{{{out, V},'$1'}, [], ['$1']},
+        mnesia:select(G#digraph.ntab, [{{'_',{out, V},'$1'}, [], ['$1']},
 				{{{in, V}, '$1'}, [], ['$1']}])
     end,
     {atomic, Result} = mnesia:transaction(Fun),
@@ -394,12 +394,16 @@ do_add_vertex({V, Label}, G) ->
 %%
 collect_vertices(G, Type) ->
     Vs = vertices(G),
+
     lists:foldl(fun(V, A) ->
-			case ets:member(G#digraph.ntab, {Type, V}) of
-			    true -> A;
-			    false -> [V|A]
-			end
-		end, [], Vs).
+        T = mnesia:transaction(fun() ->
+            mnesia:read({G#digraph.ntab, {Type,V}})
+        end),
+        case T of
+            {atomic, []} -> [V|A];
+            {atomic, [_|_]} -> A
+        end
+    end, [], Vs).
 
 %%
 %% Delete vertices
@@ -410,17 +414,30 @@ do_del_vertices([V | Vs], G) ->
 do_del_vertices([], #digraph{}) -> true.
 
 do_del_vertex(V, G) ->
-    do_del_nedges(ets:lookup(G#digraph.ntab, {in, V}), G),
-    do_del_nedges(ets:lookup(G#digraph.ntab, {out, V}), G),
-    ets:delete(G#digraph.vtab, V).
+    {atomic, E1} = mnesia:transaction(fun() -> 
+        mnesia:read({G#digraph.ntab, {in, V}}) 
+    end),
+    do_del_nedges(E1, G),
+
+    {atomic, E2} = mnesia:transaction(fun() -> 
+        mnesia:read({G#digraph.ntab, {out, V}}) 
+    end),
+    do_del_nedges(E2, G),
+
+    mnesia:transaction(fun() ->
+        mnesia:delete_object({G#digraph.vtab, V})
+    end).
 
 do_del_nedges([{_, E}|Ns], G) ->
-    case ets:lookup(G#digraph.etab, E) of
-	[{E, V1, V2, _}] ->
-	    do_del_edge(E, V1, V2, G),
-	    do_del_nedges(Ns, G);
-	[] -> % cannot happen
-	    do_del_nedges(Ns, G)
+    {atomic, R} = mnesia:transaction(fun() ->
+        mnesia:read({G#digraph.etab, E})
+    end),
+    case R of
+        [{_, E, V1, V2, _}] ->
+            do_del_edge(E, V1, V2, G),
+            do_del_nedges(Ns, G);
+        [] -> % cannot happen
+            do_del_nedges(Ns, G)
     end;
 do_del_nedges([], #digraph{}) -> true.
 
@@ -438,9 +455,15 @@ do_del_edges([E|Es], G) ->
 do_del_edges([], #digraph{}) -> true.
 
 do_del_edge(E, V1, V2, G) ->
-    ets:select_delete(G#digraph.ntab, [{{{in, V2}, E}, [], [true]},
-				       {{{out,V1}, E}, [], [true]}]),
-    ets:delete(G#digraph.etab, E).
+    {atomic, Result} = mnesia:transaction(fun() ->
+        A = mnesia:select(G#digraph.ntab, [{{'$1', {in, V2}, E}, [], [{'$1', {in,V2}, E}]},
+				       {{'$1', {out,V1}, E}, [], [{'$1', {in,V2}, E}]}], write),
+        lists:foreach(fun(R) -> mnesia:delete_object(R) end, A),
+        
+        [ER] = mnesia:read({G#digraph.etab, E}),
+        mnesia:delete_object(ER)
+    end),
+    Result.
 
 -spec rm_edges([vertex(),...], digraph()) -> 'true'.
 
