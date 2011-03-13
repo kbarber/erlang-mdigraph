@@ -1,7 +1,4 @@
-ebin/organic/
-ebin/*.boot
-ebin/*.script
-ebin/*.beam
+/ebin/*
 erl_crash.dump
 *~
 .*.swp
