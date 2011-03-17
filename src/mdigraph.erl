@@ -18,8 +18,8 @@
 %%
 -module(mdigraph).
 
--export([new/0
-	% new/1,
+-export([new/0,
+	 new/1
 	% delete/1,
 	% info/1
 	]).
@@ -40,24 +40,24 @@
 
 %% -export([get_short_path/3, get_short_cycle/2]).
 
--export_type([digraph/0, d_type/0, vertex/0]).
+-export_type([mdigraph/0, d_type/0, vertex/0]).
 
--record(digraph, {vtab = notable :: ets:tab(),
-		  etab = notable :: ets:tab(),
-		  ntab = notable :: ets:tab(),
-	          cyclic = true  :: boolean()}).
+-record(mdigraph, {vtab = notable :: mnesia:tab(),
+		   etab = notable :: mnesia:tab(),
+		   ntab = notable :: mnesia:tab(),
+		   cyclic = true  :: boolean()}).
 %% A declaration equivalent to the following one is hard-coded in erl_types.
 %% That declaration contains hard-coded information about the #digraph{}
 %% record and the types of its fields.  So, please make sure that any
 %% changes to its structure are also propagated to erl_types.erl.
 %%
-%% -opaque digraph() :: #digraph{}.
+-opaque mdigraph() :: #mdigraph{}.
 
--type edge()    :: term().
--type label()   :: term().
+%%-type edge()    :: term().
+%%-type label()   :: term().
 -type vertex()  :: term().
 
--type add_edge_err_rsn() :: {'bad_edge', [vertex()]} | {'bad_vertex', vertex()}.
+%%-type add_edge_err_rsn() :: {'bad_edge', [vertex()]} | {'bad_vertex', vertex()}.
 
 %%
 %% Type is a list of
@@ -70,13 +70,38 @@
 -type d_cyclicity()  :: 'acyclic' | 'cyclic'.
 -type d_type()       :: d_cyclicity() | d_protection().
 
--spec new() -> digraph().
+-spec new() -> mdigraph().
+new() -> new([]).
 
-new() ->
-void.
-%% new([]).
+-spec new([d_type()]) -> mdigraph().
+new(Type) ->
+    new(get_random_string(10, "abcdef01234567890"), Type).
 
-%% -spec new([d_type()]) -> digraph().
+new(Name, Type) ->
+    case check_type(Type, protected, []) of
+	{_Access, Ts} ->
+	    V = list_to_atom("vertices-" ++ Name),
+	    E = list_to_atom("edges-" ++ Name),
+	    N = list_to_atom("neighbours-" ++ Name),
+	    mnesia:create_table(V, [{type,set}]),
+	    mnesia:create_table(E, [{type,set}]),
+	    mnesia:create_table(N, [{type,bag}]),
+	    Fun = fun() ->
+			  mnesia:write({N, '$vid', 0}),
+			  mnesia:write({N, '$eid', 0})
+		  end,
+	    {atomic, _} = mnesia:transaction(Fun),
+	    set_type(Ts, #mdigraph{vtab=V, etab=E, ntab=N});
+	error ->
+	    erlang:error(badarg)
+    end.
+
+get_random_string(Length, AllowedChars) ->
+    lists:foldl(fun(_, Acc) ->
+                        [lists:nth(random:uniform(length(AllowedChars)),
+                                   AllowedChars)]
+                            ++ Acc
+                end, [], lists:seq(1, Length)).
 
 %% new(Type) ->
 %%     case check_type(Type, protected, []) of
@@ -90,31 +115,32 @@ void.
 %% 	    erlang:error(badarg)
 %%     end.
 
-%% %%
-%% %% Check type of graph
-%% %%
-%% %-spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
-%% %       	{d_protection(), [{'cyclic', boolean()}]}.
 
-%% check_type([acyclic|Ts], A, L) ->
-%%     check_type(Ts, A,[{cyclic,false} | L]);
-%% check_type([cyclic | Ts], A, L) ->
-%%     check_type(Ts, A, [{cyclic,true} | L]);
-%% check_type([protected | Ts], _, L) ->
-%%     check_type(Ts, protected, L);
-%% check_type([private | Ts], _, L) ->
-%%     check_type(Ts, private, L);
-%% check_type([], A, L) -> {A, L};
-%% check_type(_, _, _) -> error.
 
-%% %%
-%% %% Set graph type
-%% %%
-%% -spec set_type([{'cyclic', boolean()}], digraph()) -> digraph().
+%%
+%% Check type of graph
+%%
+-spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
+      	{d_protection(), [{'cyclic', boolean()}]}.
+check_type([acyclic|Ts], A, L) ->
+    check_type(Ts, A,[{cyclic,false} | L]);
+check_type([cyclic | Ts], A, L) ->
+    check_type(Ts, A, [{cyclic,true} | L]);
+check_type([protected | Ts], _, L) ->
+    check_type(Ts, protected, L);
+check_type([private | Ts], _, L) ->
+    check_type(Ts, private, L);
+check_type([], A, L) -> {A, L};
+check_type(_, _, _) -> error.
 
-%% set_type([{cyclic,V} | Ks], G) ->
-%%     set_type(Ks, G#digraph{cyclic = V});
-%% set_type([], G) -> G.
+
+%%
+%% Set graph type
+%%
+-spec set_type([{'cyclic', boolean()}], mdigraph()) -> mdigraph().
+set_type([{cyclic,V} | Ks], G) ->
+    set_type(Ks, G#mdigraph{cyclic = V});
+set_type([], G) -> G.
 
 
 %% %% Data access functions

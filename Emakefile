@@ -1,8 +1,5 @@
-%% --------------------------
-%% @copyright 2010 Bob.sh
-%% @doc Erlang emake definition for building Erlang code.
-%% 
-%% @end
-%% --------------------------
-{'src/*',
-    [debug_info,{outdir,"ebin"},{i,'include'}]}.
+%% need to keep in place to make flymake work
+{['src/*'], [debug_info, {outdir, "ebin"}, {i,"include"}]}. 
+{['src/test/*'], [debug_info, {outdir, "ebin"}, {i,"include"}]}. 
+{['test/*'], [debug_info, {outdir, "ebin"}, {i,"include"}]}. 
+

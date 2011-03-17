@@ -17,7 +17,7 @@
 new_test_() ->
     {setup, fun() -> mnesia:start() end, fun(ok) -> mnesia:stop() end,  
      [
-      ?_assertMatch(void,  mdigraph:new())
+      ?_assertMatch({mdigraph, _, _, _, tru},  mdigraph:new())
      ]
     }.
 
