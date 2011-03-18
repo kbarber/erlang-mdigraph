@@ -18,13 +18,11 @@
 %%
 -module(mdigraph).
 
--export([new/0,
-	 new/1,
-	 delete/1
-	% info/1
+-export([new/0, new/1, delete/1, info/1]).
+-export([add_vertex/1,
+	 add_vertex/2,
+	 add_vertex/3
 	]).
-
-%% -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 %% -export([del_vertex/2, del_vertices/2]).
 %% -export([vertex/2, no_vertices/1, vertices/1]).
 %% -export([source_vertices/1, sink_vertices/1]).
@@ -54,7 +52,7 @@
 -opaque mdigraph() :: #mdigraph{}.
 
 %%-type edge()    :: term().
-%%-type label()   :: term().
+-type label()   :: term().
 -type vertex()  :: term().
 
 %%-type add_edge_err_rsn() :: {'bad_edge', [vertex()]} | {'bad_vertex', vertex()}.
@@ -96,34 +94,7 @@ new(Name, Type) ->
 	    erlang:error(badarg)
     end.
 
-%%
-%% Check type of graph
-%%
--spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
-      	{d_protection(), [{'cyclic', boolean()}]}.
-check_type([acyclic|Ts], A, L) ->
-    check_type(Ts, A,[{cyclic,false} | L]);
-check_type([cyclic | Ts], A, L) ->
-    check_type(Ts, A, [{cyclic,true} | L]);
-check_type([protected | Ts], _, L) ->
-    check_type(Ts, protected, L);
-check_type([private | Ts], _, L) ->
-    check_type(Ts, private, L);
-check_type([], A, L) -> {A, L};
-check_type(_, _, _) -> error.
-
-
-%%
-%% Set graph type
-%%
--spec set_type([{'cyclic', boolean()}], mdigraph()) -> mdigraph().
-set_type([{cyclic,V} | Ks], G) ->
-    set_type(Ks, G#mdigraph{cyclic = V});
-set_type([], G) -> G.
-
-
-%% %% Data access functions
-
+%% Data access functions
 -spec delete(mdigraph()) -> 'true' | {aborted, any()}.
 delete(G) ->
     case 
@@ -137,27 +108,60 @@ delete(G) ->
     end.
 
 
-%% -spec delete(digraph()) -> 'true'.
+-spec info(mdigraph()) -> [{'cyclicity', d_cyclicity()} |
+			   {'memory', non_neg_integer()} |
+			   {'protection', d_protection()}].
+info(G) ->
+    VT = G#mdigraph.vtab,
+    ET = G#mdigraph.etab,
+    NT = G#mdigraph.ntab,
+    Cyclicity =
+	case G#mdigraph.cyclic of
+	    true  -> cyclic;
+	    false -> acyclic
+	end,
+    Protection = protected,     % TODO: Fake a protection response for now
+    Memory = mnesia:table_info(VT, memory) + mnesia:table_info(ET, memory) + mnesia:table_info(NT, memory),
+    [{cyclicity, Cyclicity}, {memory, Memory}, {protection, Protection}].
 
-%% delete(G) ->
-%%     ets:delete(G#digraph.vtab),
-%%     ets:delete(G#digraph.etab),
-%%     ets:delete(G#digraph.ntab).
 
-%% -spec info(digraph()) -> [{'cyclicity', d_cyclicity()} |
-%% 			  {'memory', non_neg_integer()} |
-%% 			  {'protection', d_protection()}].
-%% info(G) ->
-%%     VT = G#digraph.vtab,
-%%     ET = G#digraph.etab,
-%%     NT = G#digraph.ntab,
-%%     Cyclicity = case G#digraph.cyclic of
-%% 		    true  -> cyclic;
-%% 		    false -> acyclic
-%% 		end,
-%%     Protection = ets:info(VT, protection),
-%%     Memory = ets:info(VT, memory) + ets:info(ET, memory) + ets:info(NT, memory),
-%%     [{cyclicity, Cyclicity}, {memory, Memory}, {protection, Protection}].
+-spec add_vertex(mdigraph()) -> vertex().
+add_vertex(G) ->
+    do_add_vertex({new_vertex_id(G), []}, G).
+
+-spec add_vertex(mdigraph(), vertex()) -> vertex().
+add_vertex(G, V) ->
+    do_add_vertex({V, []}, G).
+
+-spec add_vertex(mdigraph(), vertex(), label()) -> vertex().
+add_vertex(G, V, D) ->
+    do_add_vertex({V, D}, G).
+
+
+-spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
+do_add_vertex({V, Label}, G) ->
+    Fun = fun()->
+		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
+	  end,
+    mnesia:transaction(Fun),
+    V.
+
+%%
+%% Generate a "unique" vertex identifier (relative to this graph)
+%%
+-spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
+new_vertex_id(G) ->
+    Fun = fun() ->
+        NT = G#mdigraph.ntab,
+        [{Tab, '$vid', K}] = mnesia:read(NT, '$vid'),
+        ok = mnesia:delete_object(NT, {Tab, '$vid', K}, write),
+        ok = mnesia:write({NT, '$vid', K+1}),
+        ['$v' | K]
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.    
+
+
 
 %% -spec add_vertex(digraph()) -> vertex().
 
@@ -598,6 +602,33 @@ delete(G) ->
 
 %% internal function
 
+%%
+%% Check type of graph
+%%
+-spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
+      	{d_protection(), [{'cyclic', boolean()}]}.
+check_type([acyclic|Ts], A, L) ->
+    check_type(Ts, A,[{cyclic,false} | L]);
+check_type([cyclic | Ts], A, L) ->
+    check_type(Ts, A, [{cyclic,true} | L]);
+check_type([protected | Ts], _, L) ->
+    check_type(Ts, protected, L);
+check_type([private | Ts], _, L) ->
+    check_type(Ts, private, L);
+check_type([], A, L) -> {A, L};
+check_type(_, _, _) -> error.
+
+
+%%
+%% Set graph type
+%%
+-spec set_type([{'cyclic', boolean()}], mdigraph()) -> mdigraph().
+set_type([{cyclic,V} | Ks], G) ->
+    set_type(Ks, G#mdigraph{cyclic = V});
+set_type([], G) -> G.
+
+%% generate a random string to be used in tables name
+-spec get_random_string(integer(), string() ) -> [].
 get_random_string(Length, AllowedChars) ->
     lists:foldl(fun(_, Acc) ->
                         [lists:nth(random:uniform(length(AllowedChars)),

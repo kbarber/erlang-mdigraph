@@ -14,7 +14,6 @@
 %% 		   ntab = notable :: mnesia:tab(),
 %% 		   cyclic = true  :: boolean()}).
 
-
 new_test_() ->
     {setup, fun() -> mnesia:start() end, fun(ok) -> mnesia:stop() end,  
      [
@@ -38,27 +37,31 @@ delete_test_() ->
      fun(G) -> [?_assertMatch(true,  mdigraph:delete(G))] end}.
 
 
+info_test_() ->
+    {setup, fun() -> mnesia:start(), G = mdigraph:new(), G end, fun(_G) -> mnesia:stop() end,  
+     fun(G) ->
+	     [
+	      ?_assertMatch([{cyclicity, cyclic},{memory, _},{protection,protected}],  mdigraph:info(G))
+	      %%?_assertMatch([{cyclicity, cyclic},{memory, _},{protection,protected}],  mdigraph:info(G))
+	     ]
+     end}.
 
-%% %% @doc Try deleting an mdigraph
-%% delete_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new(),
-%%     {atomic, ok} = mdigraph:delete(G),
-%%     stopped = mnesia:stop().
 
-%% %% @doc Digraph info
-%% info_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new(),
-%%     [_|_] = mdigraph:info(G),
-%%     stopped = mnesia:stop().  
+add_vertex_test_() ->
+    {setup, fun() -> mnesia:start(), G = mdigraph:new(), G end, fun(_G) -> mnesia:stop() end,  
+     fun(G) ->
+	     {inorder,
+	      [
+	       ?_assertMatch(['$v'|0],  mdigraph:add_vertex(G)),
+	       ?_assertMatch(['$v'|1],  mdigraph:add_vertex(G)),
+	       ?_assertMatch(['$v'|2],  mdigraph:add_vertex(G)),
+	       ?_assertMatch("foo",     mdigraph:add_vertex(G, "foo")),
+	       ?_assertMatch("bar",     mdigraph:add_vertex(G, "bar")),
+	       ?_assertMatch("next",    mdigraph:add_vertex(G, "next", label))
+	      ]
+	     }
+     end}.
 
-%% %% @doc add_vertex/1
-%% add_vertex_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new(),
-%%     ['$v'|0] = mdigraph:add_vertex(G),
-%%     stopped = mnesia:stop().
 
 %% %% @doc add_vertex/2
 %% add_vertex_20_test()->
