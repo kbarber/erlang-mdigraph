@@ -19,10 +19,24 @@ new_test_() ->
     {setup, fun() -> mnesia:start() end, fun(ok) -> mnesia:stop() end,  
      [
       ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new()),
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([])),
       ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([cyclic])),
-      ?_assertMatch({mdigraph, _, _, _, false}, mdigraph:new([acyclic]))
+      ?_assertMatch({mdigraph, _, _, _, false}, mdigraph:new([acyclic])),
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([protected])),
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([private])),
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([cyclic, protected])), 
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([cyclic, private])), 
+      ?_assertMatch({mdigraph, _, _, _, false}, mdigraph:new([acyclic, protected])), 
+      ?_assertMatch({mdigraph, _, _, _, false}, mdigraph:new([acyclic, private])),
+      ?_assertError(badarg, mdigraph:new([bad_type]))
      ]
     }.
+
+
+delete_test_() ->
+    {setup, fun() -> mnesia:start(), G = mdigraph:new(), G end, fun(_G) -> mnesia:stop() end,  
+     fun(G) -> [?_assertMatch(true,  mdigraph:delete(G))] end}.
+
 
 
 %% %% @doc Try deleting an mdigraph

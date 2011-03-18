@@ -19,8 +19,8 @@
 -module(mdigraph).
 
 -export([new/0,
-	 new/1
-	% delete/1,
+	 new/1,
+	 delete/1
 	% info/1
 	]).
 
@@ -66,7 +66,7 @@
 %%
 %%  default is [cyclic,protected]
 %%
--type d_protection() :: 'private' | 'protected'.
+-type d_protection() :: 'private' | 'protected'. %% protection level is not applicable for mnesia, left for compatibility
 -type d_cyclicity()  :: 'acyclic' | 'cyclic'.
 -type d_type()       :: d_cyclicity() | d_protection().
 
@@ -96,21 +96,6 @@ new(Name, Type) ->
 	    erlang:error(badarg)
     end.
 
-
-%% new(Type) ->
-%%     case check_type(Type, protected, []) of
-%% 	{Access, Ts} ->
-%% 	    V = ets:new(vertices, [set, Access]),
-%% 	    E = ets:new(edges, [set, Access]),
-%% 	    N = ets:new(neighbours, [bag, Access]),
-%% 	    ets:insert(N, [{'$vid', 0}, {'$eid', 0}]),
-%% 	    set_type(Ts, #digraph{vtab=V, etab=E, ntab=N});
-%% 	error ->
-%% 	    erlang:error(badarg)
-%%     end.
-
-
-
 %%
 %% Check type of graph
 %%
@@ -138,6 +123,19 @@ set_type([], G) -> G.
 
 
 %% %% Data access functions
+
+-spec delete(mdigraph()) -> 'true' | {aborted, any()}.
+delete(G) ->
+    case 
+	begin
+	    mnesia:delete_table(G#mdigraph.vtab),
+	    mnesia:delete_table(G#mdigraph.etab),
+	    mnesia:delete_table(G#mdigraph.ntab)
+	end of
+	{atomic, ok} -> true;
+	{aborted, Reason} -> {aborted, Reason}
+    end.
+
 
 %% -spec delete(digraph()) -> 'true'.
 
