@@ -96,12 +96,6 @@ new(Name, Type) ->
 	    erlang:error(badarg)
     end.
 
-get_random_string(Length, AllowedChars) ->
-    lists:foldl(fun(_, Acc) ->
-                        [lists:nth(random:uniform(length(AllowedChars)),
-                                   AllowedChars)]
-                            ++ Acc
-                end, [], lists:seq(1, Length)).
 
 %% new(Type) ->
 %%     case check_type(Type, protected, []) of
@@ -602,3 +596,13 @@ set_type([], G) -> G.
 
 %% queue_out_neighbours(V, G, Q0) ->
 %%     lists:foldl(fun(E, Q) -> queue:in(E, Q) end, Q0, out_edges(G, V)).
+
+
+%% internal function
+
+get_random_string(Length, AllowedChars) ->
+    lists:foldl(fun(_, Acc) ->
+                        [lists:nth(random:uniform(length(AllowedChars)),
+                                   AllowedChars)]
+                            ++ Acc
+                end, [], lists:seq(1, Length)).

@@ -14,33 +14,16 @@
 %% 		   ntab = notable :: mnesia:tab(),
 %% 		   cyclic = true  :: boolean()}).
 
+
 new_test_() ->
     {setup, fun() -> mnesia:start() end, fun(ok) -> mnesia:stop() end,  
      [
-      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new())
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new()),
+      ?_assertMatch({mdigraph, _, _, _, true},  mdigraph:new([cyclic])),
+      ?_assertMatch({mdigraph, _, _, _, false}, mdigraph:new([acyclic]))
      ]
     }.
 
-
-
-%% %% @doc new/0
-%% new_10_test()->
-%%     ok = mnesia:start(),
-%%     mdigraph:new(),
-%%     stopped = mnesia:stop().
-
-%% %% @doc new/1
-%% new_20_test()-> 
-%%     ok = mnesia:start(),
-%%     mdigraph:new([cyclic]),
-%%     stopped = mnesia:stop().
-    
-%% %% @doc new/2
-%% new_30_test()->
-%%     ok = mnesia:start(),
-%%     {digraph,'vertices-foobar','edges-foobar','neighbours-foobar',true} = 
-%%         mdigraph:new("foobar", [cyclic]),
-%%     stopped = mnesia:stop().
 
 %% %% @doc Try deleting an mdigraph
 %% delete_10_test()->
