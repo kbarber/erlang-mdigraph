@@ -21,7 +21,7 @@
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
--export([%%vertex/2,
+-export([vertex/2,
 	 no_vertices/1
 	 %%vertices/1
 	]).
@@ -157,15 +157,17 @@ del_vertex(G, V) ->
 del_vertices(G, Vs) -> 
     do_del_vertices(Vs, G).
 
-
-
-%% -spec vertex(digraph(), vertex()) -> {vertex(), label()} | 'false'.
-
-%% vertex(G, V) ->
-%%     case ets:lookup(G#digraph.vtab, V) of
-%% 	[] -> false;
-%% 	[Vertex] -> Vertex
-%%     end.
+-spec vertex(mdigraph(), vertex()) -> {vertex(), label()} | 'false'.
+vertex(G, V) ->
+    Fun = 
+	fun() ->
+		case mnesia:read(G#mdigraph.vtab, V) of
+		    [] -> false;
+		    [{_Tbl, Vertex, Label}] -> {Vertex, Label}
+		end
+	end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 
 %% -spec vertices(digraph()) -> [vertex()].
