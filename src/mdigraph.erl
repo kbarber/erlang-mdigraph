@@ -19,12 +19,12 @@
 -module(mdigraph).
 
 -export([new/0, new/1, delete/1, info/1]).
--export([add_vertex/1,
-	 add_vertex/2,
-	 add_vertex/3
+-export([add_vertex/1, add_vertex/2, add_vertex/3]).
+-export([del_vertex/2, del_vertices/2]).
+-export([%%vertex/2,
+	 no_vertices/1
+	 %%vertices/1
 	]).
-%% -export([del_vertex/2, del_vertices/2]).
-%% -export([vertex/2, no_vertices/1, vertices/1]).
 %% -export([source_vertices/1, sink_vertices/1]).
 
 %% -export([add_edge/3, add_edge/4, add_edge/5]).
@@ -137,56 +137,27 @@ add_vertex(G, V) ->
 add_vertex(G, V, D) ->
     do_add_vertex({V, D}, G).
 
-
--spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
-do_add_vertex({V, Label}, G) ->
-    Fun = fun()->
-		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
-	  end,
-    mnesia:transaction(Fun),
-    V.
+-spec no_vertices(mdigraph()) -> non_neg_integer().
+no_vertices(G) ->
+    mnesia:table_info(G#mdigraph.vtab, size).
 
 %%
-%% Generate a "unique" vertex identifier (relative to this graph)
+%% Delete vertices
 %%
--spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
-new_vertex_id(G) ->
-    Fun = fun() ->
-        NT = G#mdigraph.ntab,
-        [{Tab, '$vid', K}] = mnesia:read(NT, '$vid'),
-        ok = mnesia:delete_object(NT, {Tab, '$vid', K}, write),
-        ok = mnesia:write({NT, '$vid', K+1}),
-        ['$v' | K]
-    end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.    
+-spec del_vertex(mdigraph(), vertex()) -> 'true' | {abort, Reason::any()}.
+del_vertex(G, V) ->
+    case do_del_vertex(V, G) of
+	{atomic, ok} ->
+	    true;
+	{abort, Reason} ->
+	    {abort, Reason}
+    end.
+
+-spec del_vertices(mdigraph(), [vertex()]) -> 'true'.
+del_vertices(G, Vs) -> 
+    do_del_vertices(Vs, G).
 
 
-
-%% -spec add_vertex(digraph()) -> vertex().
-
-%% add_vertex(G) ->
-%%     do_add_vertex({new_vertex_id(G), []}, G).
-
-%% -spec add_vertex(digraph(), vertex()) -> vertex().
-
-%% add_vertex(G, V) ->
-%%     do_add_vertex({V, []}, G).
-
-%% -spec add_vertex(digraph(), vertex(), label()) -> vertex().
-
-%% add_vertex(G, V, D) ->
-%%     do_add_vertex({V, D}, G).
-
-%% -spec del_vertex(digraph(), vertex()) -> 'true'.
-
-%% del_vertex(G, V) ->
-%%     do_del_vertex(V, G).
-
-%% -spec del_vertices(digraph(), [vertex()]) -> 'true'.
-
-%% del_vertices(G, Vs) -> 
-%%     do_del_vertices(Vs, G).
 
 %% -spec vertex(digraph(), vertex()) -> {vertex(), label()} | 'false'.
 
@@ -196,10 +167,6 @@ new_vertex_id(G) ->
 %% 	[Vertex] -> Vertex
 %%     end.
 
-%% -spec no_vertices(digraph()) -> non_neg_integer().
-
-%% no_vertices(G) ->
-%%     ets:info(G#digraph.vtab, size).
 
 %% -spec vertices(digraph()) -> [vertex()].
 
@@ -635,3 +602,86 @@ get_random_string(Length, AllowedChars) ->
                                    AllowedChars)]
                             ++ Acc
                 end, [], lists:seq(1, Length)).
+
+-spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
+do_add_vertex({V, Label}, G) ->
+    Fun = fun()->
+		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
+	  end,
+    mnesia:transaction(Fun),
+    V.
+
+%%
+%% Generate a "unique" vertex identifier (relative to this graph)
+%%
+-spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
+new_vertex_id(G) ->
+    Fun = fun() ->
+        NT = G#mdigraph.ntab,
+        [{Tab, '$vid', K}] = mnesia:read(NT, '$vid'),
+        ok = mnesia:delete_object(NT, {Tab, '$vid', K}, write),
+        ok = mnesia:write({NT, '$vid', K+1}),
+        ['$v' | K]
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.    
+
+
+do_del_vertex(V, G) ->
+    {atomic, E1} = mnesia:transaction(fun() -> 
+        mnesia:read({G#mdigraph.ntab, {in, V}}) 
+    end),
+    do_del_nedges(E1, G),
+
+    {atomic, E2} = mnesia:transaction(fun() -> 
+        mnesia:read({G#mdigraph.ntab, {out, V}}) 
+    end),
+    do_del_nedges(E2, G),
+
+    mnesia:transaction(fun() ->
+        mnesia:delete({G#mdigraph.vtab, V})
+    end).
+
+
+do_del_vertices([V | Vs], G) ->
+    do_del_vertex(V, G),
+    do_del_vertices(Vs, G);
+do_del_vertices([], #mdigraph{}) -> true.
+
+
+do_del_nedges([{_, E}|Ns], G) ->
+    {atomic, R} = mnesia:transaction(fun() ->
+        mnesia:read({G#mdigraph.etab, E})
+    end),
+    case R of
+        [{_, E, V1, V2, _}] ->
+            do_del_edge(E, V1, V2, G),
+            do_del_nedges(Ns, G);
+        [] -> % cannot happen
+            do_del_nedges(Ns, G)
+    end;
+do_del_nedges([], #mdigraph{}) -> true.
+
+%%
+%% Delete edges
+%%
+do_del_edges([E|Es], G) ->
+    case ets:lookup(G#mdigraph.etab, E) of
+	[{E,V1,V2,_}] ->
+	    do_del_edge(E,V1,V2,G),
+	    do_del_edges(Es, G);
+	[] ->
+	    do_del_edges(Es, G)
+    end;
+do_del_edges([], #mdigraph{}) -> true.
+
+do_del_edge(E, V1, V2, G) ->
+    {atomic, Result} = mnesia:transaction(fun() ->
+        A = mnesia:select(G#mdigraph.ntab, [{{'$1', {in, V2}, E}, [], [{'$1', {in,V2}, E}]},
+				       {{'$1', {out,V1}, E}, [], [{'$1', {in,V2}, E}]}], write),
+        lists:foreach(fun(R) -> mnesia:delete_object(R) end, A),
+        
+        [ER] = mnesia:read({G#mdigraph.etab, E}),
+        mnesia:delete_object(ER)
+    end),
+    Result.
