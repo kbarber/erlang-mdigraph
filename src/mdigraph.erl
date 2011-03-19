@@ -138,9 +138,6 @@ add_vertex(G, V, D) ->
 no_vertices(G) ->
     mnesia:table_info(G#mdigraph.vtab, size).
 
-%%
-%% Delete vertices
-%%
 -spec del_vertex(mdigraph(), vertex()) -> 'true' | {abort, Reason::any()}.
 del_vertex(G, V) ->
     case do_del_vertex(V, G) of
@@ -166,7 +163,6 @@ vertex(G, V) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-
 -spec vertices(mdigraph()) -> [vertex()].
 vertices(G) ->
     Fun = fun()->
@@ -175,7 +171,6 @@ vertices(G) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-
 -spec source_vertices(mdigraph()) -> [vertex()].
 source_vertices(G) ->
     collect_vertices(G, in).
@@ -183,7 +178,6 @@ source_vertices(G) ->
 -spec sink_vertices(mdigraph()) -> [vertex()].
 sink_vertices(G) ->
     collect_vertices(G, out).
-
 
 -spec in_degree(mdigraph(), vertex()) -> non_neg_integer().
 in_degree(G, V) ->
@@ -198,10 +192,38 @@ degree(G, V, InOrOut) ->
     {atomic, A} = mnesia:transaction(Fun),
     length(A).
 
-%% -spec in_degree(digraph(), vertex()) -> non_neg_integer().
 
-%% in_degree(G, V) ->
-%%     length(ets:lookup(G#digraph.ntab, {in, V})).
+%% -spec in_neighbours(mdigraph(), vertex()) -> [vertex()].
+%% in_neighbours(G, V) ->
+%%     ET = G#mdigraph.etab,
+%%     NT = G#mdigraph.ntab,
+%%     {atomic, A} = mnesia:transaction(fun() -> mnesia:read(NT, {in, V}) end),
+%%     collect_elems(A, ET, 2).
+
+
+
+%% -spec add_edge(mdigraph(), vertex(), vertex()) ->
+%% 	 edge() | {'error', add_edge_err_rsn()}.
+
+%% add_edge(G, V1, V2) ->
+%%     do_add_edge({new_edge_id(G), V1, V2, []}, G).
+
+%% -spec add_edge(mdigraph(), vertex(), vertex(), label()) ->
+%% 	 edge() | {'error', add_edge_err_rsn()}.
+
+%% add_edge(G, V1, V2, D) ->
+%%     do_add_edge({new_edge_id(G), V1, V2, D}, G).
+
+%% -spec add_edge(mdigraph(), edge(), vertex(), vertex(), label()) ->
+%% 	 edge() | {'error', add_edge_err_rsn()}.
+
+%% add_edge(G, E, V1, V2, D) ->
+%%     do_add_edge({E, V1, V2, D}, G).
+
+
+
+
+
 
 %% -spec in_neighbours(digraph(), vertex()) -> [vertex()].
 
@@ -631,15 +653,23 @@ do_add_vertex({V, Label}, G) ->
 %%
 -spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
 new_vertex_id(G) ->
+    ['$v' | get_id(G, '$vid')].
+
+-spec new_edge_id(mdigraph()) -> nonempty_improper_list('$e', non_neg_integer()).
+new_edge_id(G) ->
+    ['$e' | get_id(G, '$eid')].
+
+get_id(G, Id) ->
     Fun = fun() ->
         NT = G#mdigraph.ntab,
-        [{Tab, '$vid', K}] = mnesia:read(NT, '$vid'),
-        ok = mnesia:delete_object(NT, {Tab, '$vid', K}, write),
-        ok = mnesia:write({NT, '$vid', K+1}),
-        ['$v' | K]
+        [{Tab, Id, K}] = mnesia:read(NT, Id),
+        ok = mnesia:delete_object(NT, {Tab, Id, K}, write),
+        ok = mnesia:write({NT, Id, K + 1}),
+        K
     end,
     {atomic, Result} = mnesia:transaction(Fun),
-    Result.    
+    Result.
+
 
 
 do_del_vertex(V, G) ->
