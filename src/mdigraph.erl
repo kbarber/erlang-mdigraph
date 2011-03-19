@@ -22,7 +22,7 @@
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
 -export([vertex/2, no_vertices/1, vertices/1]).
-%% -export([source_vertices/1, sink_vertices/1]).
+-export([source_vertices/1, sink_vertices/1]).
 
 %% -export([add_edge/3, add_edge/4, add_edge/5]).
 %% -export([del_edge/2, del_edges/2, del_path/3]).
@@ -30,7 +30,7 @@
 
 %% -export([out_neighbours/2, in_neighbours/2]).
 %% -export([out_edges/2, in_edges/2, edges/2]).
-%% -export([out_degree/2, in_degree/2]).
+-export([out_degree/2, in_degree/2]).
 %% -export([get_path/3, get_cycle/2]).
 
 %% -export([get_short_path/3, get_short_cycle/2]).
@@ -176,20 +176,27 @@ vertices(G) ->
     Result.
 
 
-%% -spec vertices(digraph()) -> [vertex()].
+-spec source_vertices(mdigraph()) -> [vertex()].
+source_vertices(G) ->
+    collect_vertices(G, in).
 
-%% vertices(G) ->
-%%     ets:select(G#digraph.vtab, [{{'$1', '_'}, [], ['$1']}]).
+-spec sink_vertices(mdigraph()) -> [vertex()].
+sink_vertices(G) ->
+    collect_vertices(G, out).
 
-%% -spec source_vertices(digraph()) -> [vertex()].
 
-%% source_vertices(G) ->
-%%     collect_vertices(G, in).
+-spec in_degree(mdigraph(), vertex()) -> non_neg_integer().
+in_degree(G, V) ->
+    degree(G, V, in).
 
-%% -spec sink_vertices(digraph()) -> [vertex()].
+-spec out_degree(digraph(), vertex()) -> non_neg_integer().
+out_degree(G, V) ->
+    degree(G, V, out).
 
-%% sink_vertices(G) ->
-%%     collect_vertices(G, out).
+degree(G, V, InOrOut) ->
+    Fun = fun() -> mnesia:read(G#mdigraph.ntab, {InOrOut, V}) end,
+    {atomic, A} = mnesia:transaction(Fun),
+    length(A).
 
 %% -spec in_degree(digraph(), vertex()) -> non_neg_integer().
 
@@ -693,3 +700,19 @@ do_del_edge(E, V1, V2, G) ->
         mnesia:delete_object(ER)
     end),
     Result.
+
+
+%%
+%% Collect either source or sink vertices.
+%%
+collect_vertices(G, Type) ->
+    Vs = vertices(G),
+    lists:foldl(fun(V, A) ->
+        T = mnesia:transaction(fun() ->
+            mnesia:read({G#mdigraph.ntab, {Type,V}})
+        end),
+        case T of
+            {atomic, []} -> [V|A];
+            {atomic, [_|_]} -> A
+        end
+    end, [], Vs).

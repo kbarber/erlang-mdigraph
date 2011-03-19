@@ -55,6 +55,8 @@ add_delete_vertex_test_() ->
 	       ?_assertMatch(['$v'|0],       mdigraph:add_vertex(G)),
 	       ?_assertMatch({['$v'|0],[]},  mdigraph:vertex(G, ['$v'|0])),
 	       ?_assertMatch([['$v'|0]],     mdigraph:vertices(G)),
+	       ?_assertMatch([['$v'|0]],     mdigraph:source_vertices(G)),
+	       ?_assertMatch([['$v'|0]],     mdigraph:sink_vertices(G)),
 	       ?_assertMatch(['$v'|1],       mdigraph:add_vertex(G)),
 	       ?_assertMatch(['$v'|2],       mdigraph:add_vertex(G)),
 	       ?_assertEqual(3,              mdigraph:no_vertices(G)),
@@ -72,22 +74,28 @@ add_delete_vertex_test_() ->
 	     }
      end}.
 
+vertex_test_() ->
+    {setup, 
+     fun() -> mnesia:start(),
+	      G = mdigraph:new(),
+	      V = mdigraph:add_vertex(G),
+	      {G, V} end,
+     fun(_G) -> mnesia:stop() end,
+     fun({G, V}) ->
+	     {inorder,
+	      [
+	       ?_assertMatch([['$v'|0]],     mdigraph:source_vertices(G)),
+	       ?_assertMatch([['$v'|0]],     mdigraph:sink_vertices(G)),
+	       ?_assertEqual(1,              mdigraph:no_vertices(G)),
+	       ?_assertEqual(0,              mdigraph:in_degree(G, V)),
+	       ?_assertEqual(0,              mdigraph:out_degree(G, V))
+	      ]
+	     }
+     end}.
 
-%% %% @doc no_verticies/1
-%% no_verticies_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new(),
-%%     mdigraph:add_vertex(G),
-%%     1 = mdigraph:no_vertices(G),
-%%     stopped = mnesia:stop().
 
-%% %% @doc vertices/1
-%% vertices_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new([cyclic]),
-%%     mdigraph:add_vertex(G),
-%%     [['$v'|0]] = mdigraph:vertices(G),
-%%     stopped = mnesia:stop().
+
+
 
 %% %% @doc source_vertices/1
 %% %% TODO: add real test, this is a placeholder
