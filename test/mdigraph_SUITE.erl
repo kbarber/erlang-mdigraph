@@ -37,11 +37,11 @@ all() ->
 add_vertex(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
- 
-    V1 = mdigraph:add_vertex(MG, "foo"),
-    V2 = digraph:add_vertex(DG, "foo"),
+    Vertices = ["A", "B", "C", "D", "E", "F"],
+    [mdigraph:add_vertex(MG, V) || V <- Vertices],
+    [digraph:add_vertex(DG, V) || V <- Vertices],
+    %% could be in unspecified order
+    V1 = lists:sort(mdigraph:vertices(MG)),
+    V2 = lists:sort(digraph:vertices(DG)),
     V1 = V2,
- 
-    
-
-   ok.
+    ok.
