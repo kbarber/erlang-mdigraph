@@ -24,7 +24,9 @@ end_per_suite(_Config) ->
     ok.
 
 init_per_testcase(_TestCase, Config) ->
-    Config.
+    MG = mdigraph:new(),
+    DG = digraph:new(),
+    [{mg, MG}, {dg, DG} | Config].
 
 end_per_testcase(_TestCase, _Config) ->
     ok.
@@ -32,10 +34,14 @@ end_per_testcase(_TestCase, _Config) ->
 all() -> 
     [add_vertex].
 
-add_vertex(_Config) -> 
-    MD = mdigraph:new(),
-    DG = digraph:new(),
-    VM = mdigraph:add_vertex(MD, "foo"),
-    VD = digraph:add_vertex(DG, "foo"),
-    VM = VD,
-    ok.
+add_vertex(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+ 
+    V1 = mdigraph:add_vertex(MG, "foo"),
+    V2 = digraph:add_vertex(DG, "foo"),
+    V1 = V2,
+ 
+    
+
+   ok.
