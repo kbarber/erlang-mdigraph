@@ -95,6 +95,22 @@ vertex_test_() ->
 
 
 
+add_delete_edge_test_() ->
+    {setup, fun() -> mnesia:start(), G = mdigraph:new(), G end, fun(_G) -> mnesia:stop() end,  
+     fun(G) ->
+	     {inorder,
+	      [
+	       ?_assertMatch("foo",          mdigraph:add_vertex(G, "foo")),
+	       ?_assertMatch("bar",          mdigraph:add_vertex(G, "bar")),
+	       ?_assertMatch("next",         mdigraph:add_vertex(G, "next")),
+	       ?_assertMatch(['$e'|0],         mdigraph:add_edge(G, "foo", "bar")),
+	       ?_assertMatch(['$e'|1],         mdigraph:add_edge(G, "foo", "next")),
+	       ?_assertError({bad_vertex, "not_exist"}, mdigraph:add_edge(G, "foo", "not_exist"))
+	      ]
+	     }
+     end}.
+
+
 
 
 %% %% @doc source_vertices/1

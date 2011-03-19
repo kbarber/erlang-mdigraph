@@ -7,4 +7,4 @@ clean:
 
 test: all
 	./rebar skip_deps=true eunit
-	./rebar ct
+	# ./rebar ct
