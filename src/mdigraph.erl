@@ -21,10 +21,7 @@
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
--export([vertex/2,
-	 no_vertices/1
-	 %%vertices/1
-	]).
+-export([vertex/2, no_vertices/1, vertices/1]).
 %% -export([source_vertices/1, sink_vertices/1]).
 
 %% -export([add_edge/3, add_edge/4, add_edge/5]).
@@ -166,6 +163,15 @@ vertex(G, V) ->
 		    [{_Tbl, Vertex, Label}] -> {Vertex, Label}
 		end
 	end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
+
+
+-spec vertices(mdigraph()) -> [vertex()].
+vertices(G) ->
+    Fun = fun()->
+        mnesia:select(G#mdigraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}])
+    end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 

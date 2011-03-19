@@ -54,6 +54,7 @@ add_delete_vertex_test_() ->
 	      [
 	       ?_assertMatch(['$v'|0],       mdigraph:add_vertex(G)),
 	       ?_assertMatch({['$v'|0],[]},  mdigraph:vertex(G, ['$v'|0])),
+	       ?_assertMatch([['$v'|0]],     mdigraph:vertices(G)),
 	       ?_assertMatch(['$v'|1],       mdigraph:add_vertex(G)),
 	       ?_assertMatch(['$v'|2],       mdigraph:add_vertex(G)),
 	       ?_assertEqual(3,              mdigraph:no_vertices(G)),
@@ -62,7 +63,7 @@ add_delete_vertex_test_() ->
 	       ?_assertMatch("bar",          mdigraph:add_vertex(G, "bar")),
 	       ?_assertMatch({"foo",[]},     mdigraph:vertex(G, "foo")),
 	       ?_assertMatch("next",         mdigraph:add_vertex(G, "next", label)),
-	       ?_assertEqual(6,              mdigraph:no_vertices(G)),
+	       ?_assertEqual(6,              mdigraph:no_vertices(G)),	       
 	       ?_assertMatch(true,           mdigraph:del_vertex(G, "next")),
 	       ?_assertEqual(5,              mdigraph:no_vertices(G)),
 	       ?_assertMatch(true,           mdigraph:del_vertices(G, ["foo", "bar", ['$v'|0], ['$v'|1], ['$v'|2]])),
@@ -71,16 +72,6 @@ add_delete_vertex_test_() ->
 	     }
      end}.
 
-
-
-%% %% @doc vertex/2
-%% vertex_10_test()->
-%%     ok = mnesia:start(),
-%%     G = mdigraph:new(),
-%%     V = mdigraph:add_vertex(G),
-%%     VT = G#digraph.vtab,
-%%     {VT, V, []} = mdigraph:vertex(G,V),
-%%     stopped = mnesia:stop().
 
 %% %% @doc no_verticies/1
 %% no_verticies_10_test()->
