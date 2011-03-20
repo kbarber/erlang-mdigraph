@@ -163,9 +163,7 @@ vertex(G, V) ->
 
 -spec vertices(mdigraph()) -> [vertex()].
 vertices(G) ->
-    Fun = fun()->
-        mnesia:select(G#mdigraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}])
-    end,
+    Fun = fun()-> mnesia:select(G#mdigraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 

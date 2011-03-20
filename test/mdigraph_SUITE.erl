@@ -43,15 +43,49 @@ init_per_testcase(_TestCase, Config) ->
 
     [{mg, MG}, {dg, DG} | Config].
 
-end_per_testcase(_TestCase, _Config) ->
+end_per_testcase(_TestCase, Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    %% delete graphs
+    mdigraph:delete(MG),
+    digraph:delete(DG),
     ok.
 
 all() -> 
-    [add_vertex].
+    [
+     add_vertex,
+     del_vertex
+    ].
 
 add_vertex(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
+
+    %% compare vertices could be in unspecified order
+    MG_V = lists:sort(mdigraph:vertices(MG)),
+    DG_V = lists:sort(digraph:vertices(DG)),
+    ct:log("-> vertices, ~p, ~p ", [MG_V, DG_V]),
+    MG_V = DG_V,
+
+    %% compare edges
+    MG_E = lists:sort(mdigraph:edges(MG)),
+    DG_E = lists:sort(digraph:edges(DG)),
+    ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
+    MG_E = DG_E,
+    ok.
+
+
+del_vertex(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    
+    %% delete one node
+    true = mdigraph:del_vertex(MG, "F"),
+    true = digraph:del_vertex(DG, "F"),
+
+    %% delete two
+    true = mdigraph:del_vertices(MG, ["E", "D"]),
+    true = digraph:del_vertices(DG,  ["E", "D"]),
 
     %% compare vertices could be in unspecified order
     MG_V = lists:sort(mdigraph:vertices(MG)),
