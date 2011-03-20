@@ -17,7 +17,9 @@ suite() ->
 
 init_per_suite(Config) ->
     mnesia:start(),
-    Config.
+    Edges =  [{"A", "B"}, {"A", "C"}, {"B", "D"}, {"C", "D"}, {"D", "E"}, {"E", "F"}],
+    Vertices = ["A", "B", "C", "D", "E", "F"],
+    [{edges, Edges}, {vertices, Vertices} | Config].
 
 end_per_suite(_Config) ->
     mnesia:stop(),
@@ -37,11 +39,27 @@ all() ->
 add_vertex(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
-    Vertices = ["A", "B", "C", "D", "E", "F"],
+    Vertices = ?config(vertices, Config),
+    Edges = ?config(edges, Config),
+    
+    %% add vertices
     [mdigraph:add_vertex(MG, V) || V <- Vertices],
     [digraph:add_vertex(DG, V) || V <- Vertices],
-    %% could be in unspecified order
-    V1 = lists:sort(mdigraph:vertices(MG)),
-    V2 = lists:sort(digraph:vertices(DG)),
-    V1 = V2,
+
+    %% compare vertices could be in unspecified order
+    MG_V = lists:sort(mdigraph:vertices(MG)),
+    DG_V = lists:sort(digraph:vertices(DG)),
+    ct:log("-> vertices, ~p, ~p ", [MG_V, DG_V]),
+    MG_V = DG_V,
+
+    %% add edges
+    [mdigraph:add_edge(MG, V1, V2) || {V1, V2} <- Edges],
+    [digraph:add_edge(DG, V1, V2) || {V1, V2} <- Edges],
+
+    %% compare edges
+    MG_E = lists:sort(mdigraph:edges(MG)),
+    DG_E = lists:sort(digraph:edges(DG)),
+    ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
+    MG_E = DG_E,
+
     ok.
