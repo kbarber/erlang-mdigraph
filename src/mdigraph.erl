@@ -63,6 +63,7 @@
 -type d_cyclicity()  :: 'acyclic' | 'cyclic'.
 -type d_type()       :: d_cyclicity() | d_protection().
 
+%% CT covered
 -spec new() -> mdigraph().
 new() -> new([]).
 
@@ -89,7 +90,10 @@ new(Name, Type) ->
 	    erlang:error(badarg)
     end.
 
+
 %% Data access functions
+
+%% CT covered
 -spec delete(mdigraph()) -> 'true' | {aborted, any()}.
 delete(G) ->
     case 
@@ -103,6 +107,7 @@ delete(G) ->
     end.
 
 
+%% EU covered
 -spec info(mdigraph()) -> [{'cyclicity', d_cyclicity()} |
 			   {'memory', non_neg_integer()} |
 			   {'protection', d_protection()}].
@@ -119,7 +124,7 @@ info(G) ->
     Memory = mnesia:table_info(VT, memory) + mnesia:table_info(ET, memory) + mnesia:table_info(NT, memory),
     [{cyclicity, Cyclicity}, {memory, Memory}, {protection, Protection}].
 
-
+%% CT covered
 -spec add_vertex(mdigraph()) -> vertex().
 add_vertex(G) ->
     do_add_vertex({new_vertex_id(G), []}, G).
@@ -167,18 +172,21 @@ vertices(G) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
+%% CT
 -spec source_vertices(mdigraph()) -> [vertex()].
 source_vertices(G) ->
     collect_vertices(G, in).
 
+%% CT
 -spec sink_vertices(mdigraph()) -> [vertex()].
 sink_vertices(G) ->
     collect_vertices(G, out).
 
+%% CT
 -spec in_degree(mdigraph(), vertex()) -> non_neg_integer().
 in_degree(G, V) ->
     degree(G, V, in).
-
+%% CT
 -spec out_degree(digraph(), vertex()) -> non_neg_integer().
 out_degree(G, V) ->
     degree(G, V, out).
@@ -203,6 +211,17 @@ neighbours(G, V, InOrOut, Index) ->
     Fun = fun() -> mnesia:read(NT, {InOrOut, V}) end,
     {atomic, A} = mnesia:transaction(Fun),
     collect_elems(A, ET, Index).
+
+
+
+collect_elems(Keys, Table, Index) ->
+    collect_elems(Keys, Table, Index, []).
+
+collect_elems([{_, _,Key}|Keys], Table, Index, Acc) ->
+    collect_elems(Keys, Table, Index,
+		  [ets:lookup_element(Table, Key, Index) |Acc]);
+collect_elems([], _, _, Acc) -> Acc.
+
 
 
 -spec add_edge(mdigraph(), vertex(), vertex()) ->
@@ -272,10 +291,17 @@ do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
     Fun = fun() ->
         mnesia:write({NT, {out, V1}, E}),
         mnesia:write({NT, {in, V2}, E}),
-        mnesia:write({ET, E, {V1, V2, Label}})
+        mnesia:write({ET, E, V1, V2, Label})
     end,
     {atomic, _} = mnesia:transaction(Fun),
     E.
+
+
+
+%% do_insert_edge(E, V1, V2, Label, #digraph{ntab=NT, etab=ET}) ->
+%%     ets:insert(NT, [{{out, V1}, E}, {{in, V2}, E}]),
+%%     ets:insert(ET, {E, V1, V2, Label}),
+%%     E.
 
 
 -spec get_path(digraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
@@ -614,13 +640,13 @@ collect_vertices(G, Type) ->
 %% Collect elements for a index in a tuple
 %%
 % TODO: how do I replicate lookup_element easily here?
-collect_elems(Keys, Table, Index) ->
-    collect_elems(Keys, Table, Index, []).
+%% collect_elems(Keys, Table, Index) ->
+%%     collect_elems(Keys, Table, Index, []).
 
-collect_elems([{_,Key}|Keys], Table, Index, Acc) ->
-    collect_elems(Keys, Table, Index,
-		  [ets:lookup_element(Table, Key, Index)|Acc]);
-collect_elems([], _, _, Acc) -> Acc.
+%% collect_elems([{_,Key}|Keys], Table, Index, Acc) ->
+%%     collect_elems(Keys, Table, Index,
+%% 		  [ets:lookup_element(Table, Key, Index)|Acc]);
+%% collect_elems([], _, _, Acc) -> Acc.
 
 %% %%
 %% %% Collect elements for a index in a tuple

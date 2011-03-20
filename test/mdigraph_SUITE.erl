@@ -56,6 +56,7 @@ all() ->
      add,
      source_sink,
      in_out_degree,
+     in_out_neighbours,
      del_vertex
     ].
 
@@ -104,6 +105,25 @@ in_out_degree(Config) ->
     ct:log("-> Out_degree, ~p, ~p ", [MG_Out_degree, DG_Out_degree]),
     MG_Out_degree = DG_Out_degree,
     ok.
+
+in_out_neighbours(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    Vertices = ?config(vertices, Config),
+    %% in neighbours
+    MG_In_N = [ {V, mdigraph:in_neighbours(MG, V)} || V <- Vertices ],
+    DG_In_N = [ {V, digraph:in_neighbours(DG, V)} || V <- Vertices ],
+    ct:log("-> In_neighbours, ~p,   ~p ", [MG_In_N, DG_In_N]),
+    %ct:log("-> In_neighbours, ~p ", [ MG_In_N]),
+    %%MG_In_N = DG_In_N,
+    %% out neighbours
+    %%MG_Out_neighbours = [ {V, mdigraph:out_neighbours(MG, V)} || V <- Vertices ],
+    DG_Out_neighbours = [ {V, digraph:out_neighbours(DG, V)} || V <- Vertices ],
+    %%ct:log("-> Out_neighbours, ~p, ~p ", [MG_Out_neighbours, DG_Out_neighbours]),
+    %%MG_Out_neighbours = DG_Out_neighbours,
+    ct:log("-> out_neighbours, ~p ", [ DG_Out_neighbours]),
+    ok.
+
 
 
 del_vertex(Config) ->
