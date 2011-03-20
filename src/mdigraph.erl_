@@ -335,7 +335,7 @@ edge(G, E) ->
         [] -> false;
         [Edge] -> Edge
     end.
-
+5o
 %%
 %% Generate a "unique" edge identifier (relative to this graph)
 %%
@@ -546,7 +546,6 @@ acyclic_add_edge(E, V1, V2, Label, G) ->
 %%
 
 -spec del_path(digraph(), vertex(), vertex()) -> 'true'.
-
 del_path(G, V1, V2) ->
     case get_path(G, V1, V2) of
 	false -> true;

@@ -18,6 +18,15 @@
 %%
 -module(mdigraph).
 
+%% to test:
+%%mnesia:start().
+%% Edges =  [{"A", "B"}, {"A", "C"}, {"B", "D"}, {"C", "D"}, {"D", "E"}, {"E", "F"}].
+%% Vertices = ["A", "B", "C", "D", "E", "F"].
+%% G = mdigraph:new().
+%% [mdigraph:add_vertex(G, V) || V <- Vertices].
+%% [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges].
+
+
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
@@ -52,6 +61,9 @@
 -type vertex()  :: term().
 -type add_edge_err_rsn() :: {'bad_edge', [vertex()]} | {'bad_vertex', vertex()}.
 
+-record(vertex, {name, label}).
+-record(edge,   {id, in, out, label}).
+-record(neighbour, {name, id}).
 %%
 %% Type is a list of
 %%  protected | private
@@ -78,7 +90,7 @@ new(Name, Type) ->
 	    E = list_to_atom("edges-" ++ Name),
 	    N = list_to_atom("neighbours-" ++ Name),
 	    mnesia:create_table(V, [{type,set}]),
-	    mnesia:create_table(E, [{type,set}]),
+	    mnesia:create_table(E, [{type,set}, {attributes, record_info(fields, edge)}]),
 	    mnesia:create_table(N, [{type,bag}]),
 	    Fun = fun() ->
 			  mnesia:write({N, '$vid', 0}),
@@ -199,11 +211,11 @@ degree(G, V, InOrOut) ->
 
 -spec in_neighbours(mdigraph(), vertex()) -> [vertex()].
 in_neighbours(G, V) ->
-    neighbours(G, V, in, 2).
+    neighbours(G, V, in, 3).
 
 -spec out_neighbours(mdigraph(), vertex()) -> [vertex()].
 out_neighbours(G, V) ->
-    neighbours(G, V, out, 3).
+    neighbours(G, V, out, 4).
 
 neighbours(G, V, InOrOut, Index) ->
     ET = G#mdigraph.etab,
@@ -217,7 +229,7 @@ neighbours(G, V, InOrOut, Index) ->
 collect_elems(Keys, Table, Index) ->
     collect_elems(Keys, Table, Index, []).
 
-collect_elems([{_, _,Key}|Keys], Table, Index, Acc) ->
+collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
     collect_elems(Keys, Table, Index,
 		  [ets:lookup_element(Table, Key, Index) |Acc]);
 collect_elems([], _, _, Acc) -> Acc.
@@ -288,20 +300,15 @@ acyclic_add_edge(E, V1, V2, Label, G) ->
 
 -spec do_insert_edge(edge(), vertex(), vertex(), label(), mdigraph()) -> edge().
 do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
+    Edge_row = {ET, E, V1, V2, Label},
     Fun = fun() ->
         mnesia:write({NT, {out, V1}, E}),
         mnesia:write({NT, {in, V2}, E}),
-        mnesia:write({ET, E, V1, V2, Label})
+        mnesia:write(Edge_row)
     end,
     {atomic, _} = mnesia:transaction(Fun),
     E.
 
-
-
-%% do_insert_edge(E, V1, V2, Label, #digraph{ntab=NT, etab=ET}) ->
-%%     ets:insert(NT, [{{out, V1}, E}, {{in, V2}, E}]),
-%%     ets:insert(ET, {E, V1, V2, Label}),
-%%     E.
 
 
 -spec get_path(digraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
@@ -390,7 +397,7 @@ rm_edge_0([], _, _, #mdigraph{}) -> ok.
 
 -spec edges(mdigraph()) -> [edge()].
 edges(G) ->
-    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_'}, [], ['$1']}]) end,
+    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
