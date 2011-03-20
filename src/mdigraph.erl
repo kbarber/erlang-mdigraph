@@ -366,9 +366,10 @@ rm_edge_0([], _, _, #mdigraph{}) -> ok.
 
 -spec edges(mdigraph()) -> [edge()].
 edges(G) ->
-    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
+    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
+
 
 
 -spec edges(mdigraph(), vertex()) -> [edge()].
