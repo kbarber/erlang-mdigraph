@@ -28,6 +28,19 @@ end_per_suite(_Config) ->
 init_per_testcase(_TestCase, Config) ->
     MG = mdigraph:new(),
     DG = digraph:new(),
+
+    Vertices = ?config(vertices, Config),
+    Edges = ?config(edges, Config),
+    
+    %% init digraph and mdigraph with same data
+    %% add vertices
+    [mdigraph:add_vertex(MG, V) || V <- Vertices],
+    [digraph:add_vertex(DG, V) || V <- Vertices],
+
+    %% add edges
+    [mdigraph:add_edge(MG, V1, V2) || {V1, V2} <- Edges],
+    [digraph:add_edge(DG, V1, V2) || {V1, V2} <- Edges],
+
     [{mg, MG}, {dg, DG} | Config].
 
 end_per_testcase(_TestCase, _Config) ->
@@ -39,12 +52,6 @@ all() ->
 add_vertex(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
-    Vertices = ?config(vertices, Config),
-    Edges = ?config(edges, Config),
-    
-    %% add vertices
-    [mdigraph:add_vertex(MG, V) || V <- Vertices],
-    [digraph:add_vertex(DG, V) || V <- Vertices],
 
     %% compare vertices could be in unspecified order
     MG_V = lists:sort(mdigraph:vertices(MG)),
@@ -52,14 +59,9 @@ add_vertex(Config) ->
     ct:log("-> vertices, ~p, ~p ", [MG_V, DG_V]),
     MG_V = DG_V,
 
-    %% add edges
-    [mdigraph:add_edge(MG, V1, V2) || {V1, V2} <- Edges],
-    [digraph:add_edge(DG, V1, V2) || {V1, V2} <- Edges],
-
     %% compare edges
     MG_E = lists:sort(mdigraph:edges(MG)),
     DG_E = lists:sort(digraph:edges(DG)),
     ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
     MG_E = DG_E,
-
     ok.
