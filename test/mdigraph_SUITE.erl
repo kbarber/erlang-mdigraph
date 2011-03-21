@@ -57,7 +57,9 @@ all() ->
      source_sink,
      in_out_degree,
      in_out_neighbours,
-     del_vertex
+     del_vertex,
+     del_edge,
+     path
     ].
 
 add(Config) ->
@@ -124,19 +126,36 @@ in_out_neighbours(Config) ->
     %%ct:log("-> out_neighbours, ~p ", [ DG_Out_neighbours]),
     ok.
 
-
-
 del_vertex(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
-    
+    Vertices = ?config(vertices, Config),    
+
     %% delete one node
     true = mdigraph:del_vertex(MG, "F"),
     true = digraph:del_vertex(DG, "F"),
 
+    %% check that it is gone
+    false = mdigraph:vertex(MG, "F"),
+    false = digraph:vertex(DG, "F"),
+
+    %% check length of remaining
+    Exp_V = length(Vertices) - 1,
+    Exp_V = mdigraph:no_vertices(MG),
+    Exp_V = digraph:no_vertices(DG),
+    
+    %% try to delete no-existant
+    true = mdigraph:del_vertex(MG, "F"),
+    true = digraph:del_vertex(DG, "F"),
+    Exp_V = mdigraph:no_vertices(MG),
+    Exp_V = digraph:no_vertices(DG),
+
     %% delete two
+    Exp_v2 = Exp_V - 2,
     true = mdigraph:del_vertices(MG, ["E", "D"]),
     true = digraph:del_vertices(DG,  ["E", "D"]),
+    Exp_V2 = mdigraph:no_vertices(MG),
+    Exp_V2 = digraph:no_vertices(DG),
 
     %% compare vertices could be in unspecified order
     MG_V = lists:sort(mdigraph:vertices(MG)),
@@ -149,4 +168,50 @@ del_vertex(Config) ->
     DG_E = lists:sort(digraph:edges(DG)),
     ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
     MG_E = DG_E,
+    ok.
+
+
+del_edge(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+
+    %% get edges
+    MG_E = lists:sort(mdigraph:edges(MG)),
+    DG_E = lists:sort(digraph:edges(DG)),
+
+    %% delete one edge
+    true = mdigraph:del_edge(MG, hd(MG_E)),
+    true = digraph:del_edge(DG, hd(DG_E)),
+
+    MG_E_2 = lists:sort(mdigraph:edges(MG)),
+    DG_E_2 = lists:sort(digraph:edges(DG)),
+
+    ct:log("-> edges, ~p, ~p ", [MG_E_2, DG_E_2]),
+    MG_E_2 = DG_E_2,
+
+    %% delete in the middle
+    true = mdigraph:del_edge(MG, lists:nth(3, MG_E)),
+    true = digraph:del_edge(DG, lists:nth(3, DG_E)),
+
+    MG_E_3 = lists:sort(mdigraph:edges(MG)),
+    DG_E_3 = lists:sort(digraph:edges(DG)),
+    ct:log("-> edges, ~p, ~p ", [MG_E_3, DG_E_3]),
+    MG_E_3 = DG_E_3,
+
+    %% check vertices
+    MG_V = lists:sort(mdigraph:vertices(MG)),
+    DG_V = lists:sort(digraph:vertices(DG)),
+    ct:log("-> vertices, ~p, ~p ", [MG_V, DG_V]),
+    MG_V = DG_V,
+    ok.
+
+
+path(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    %% source
+    MG_Path = mdigraph:get_path(MG, "A", "E"),
+    DG_Path = digraph:get_path(DG, "A", "E"),
+    ct:log("-> path, ~p, ~p ", [MG_Path, DG_Path]),
+    MG_Path = DG_Path,
     ok.

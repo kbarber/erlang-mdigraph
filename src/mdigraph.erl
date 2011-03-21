@@ -150,10 +150,12 @@ add_vertex(G, V) ->
 add_vertex(G, V, D) ->
     do_add_vertex({V, D}, G).
 
+%% CT
 -spec no_vertices(mdigraph()) -> non_neg_integer().
 no_vertices(G) ->
     mnesia:table_info(G#mdigraph.vtab, size).
 
+%% CT
 -spec del_vertex(mdigraph(), vertex()) -> 'true' | {abort, Reason::any()}.
 del_vertex(G, V) ->
     case do_del_vertex(V, G) of
@@ -163,6 +165,7 @@ del_vertex(G, V) ->
 	    {abort, Reason}
     end.
 
+%% CT
 -spec del_vertices(mdigraph(), [vertex()]) -> 'true'.
 del_vertices(G, Vs) -> 
     do_del_vertices(Vs, G).
@@ -179,6 +182,7 @@ vertex(G, V) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
+% CT
 -spec vertices(mdigraph()) -> [vertex()].
 vertices(G) ->
     Fun = fun()-> mnesia:select(G#mdigraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}]) end,
@@ -199,6 +203,7 @@ sink_vertices(G) ->
 -spec in_degree(mdigraph(), vertex()) -> non_neg_integer().
 in_degree(G, V) ->
     degree(G, V, in).
+
 %% CT
 -spec out_degree(digraph(), vertex()) -> non_neg_integer().
 out_degree(G, V) ->
@@ -209,11 +214,12 @@ degree(G, V, InOrOut) ->
     {atomic, A} = mnesia:transaction(Fun),
     length(A).
 
-
+%% CT
 -spec in_neighbours(mdigraph(), vertex()) -> [vertex()].
 in_neighbours(G, V) ->
     neighbours(G, V, in, 3).
 
+%% CT
 -spec out_neighbours(mdigraph(), vertex()) -> [vertex()].
 out_neighbours(G, V) ->
     neighbours(G, V, out, 4).
@@ -226,7 +232,6 @@ neighbours(G, V, InOrOut, Index) ->
     collect_elems(A, ET, Index).
 
 
-
 collect_elems(Keys, Table, Index) ->
     collect_elems(Keys, Table, Index, []).
 
@@ -236,7 +241,7 @@ collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
 collect_elems([], _, _, Acc) -> Acc.
 
 
-
+%%CT
 -spec add_edge(mdigraph(), vertex(), vertex()) ->
 	 edge() | {'error', add_edge_err_rsn()}.
 add_edge(G, V1, V2) ->
@@ -311,12 +316,10 @@ do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
     E.
 
 
-
+%% CT
 -spec get_path(digraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
 get_path(G, V1, V2) ->
     one_path(out_neighbours(G, V1), V2, [], [V1], [V1], 1, G, 1).
-
-
 
 %%
 %% prune_short_path (evaluate conditions on path)
