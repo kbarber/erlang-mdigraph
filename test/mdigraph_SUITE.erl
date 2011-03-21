@@ -115,13 +115,13 @@ in_out_neighbours(Config) ->
     DG_In_N = [ {V, digraph:in_neighbours(DG, V)} || V <- Vertices ],
     ct:log("-> In_neighbours, ~p,   ~p ", [MG_In_N, DG_In_N]),
     %ct:log("-> In_neighbours, ~p ", [ MG_In_N]),
-    %%MG_In_N = DG_In_N,
+    MG_In_N = DG_In_N,
     %% out neighbours
-    %%MG_Out_neighbours = [ {V, mdigraph:out_neighbours(MG, V)} || V <- Vertices ],
+    MG_Out_neighbours = [ {V, mdigraph:out_neighbours(MG, V)} || V <- Vertices ],
     DG_Out_neighbours = [ {V, digraph:out_neighbours(DG, V)} || V <- Vertices ],
-    %%ct:log("-> Out_neighbours, ~p, ~p ", [MG_Out_neighbours, DG_Out_neighbours]),
-    %%MG_Out_neighbours = DG_Out_neighbours,
-    ct:log("-> out_neighbours, ~p ", [ DG_Out_neighbours]),
+    ct:log("-> Out_neighbours, ~p, ~p ", [MG_Out_neighbours, DG_Out_neighbours]),
+    MG_Out_neighbours = DG_Out_neighbours,
+    %%ct:log("-> out_neighbours, ~p ", [ DG_Out_neighbours]),
     ok.
 
 

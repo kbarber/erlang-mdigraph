@@ -25,7 +25,8 @@
 %% G = mdigraph:new().
 %% [mdigraph:add_vertex(G, V) || V <- Vertices].
 %% [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges].
-
+%% mdigraph:del_edge(G, ['$e'|0]).
+-include_lib("stdlib/include/qlc.hrl").
 
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
@@ -61,9 +62,9 @@
 -type vertex()  :: term().
 -type add_edge_err_rsn() :: {'bad_edge', [vertex()]} | {'bad_vertex', vertex()}.
 
--record(vertex, {name, label}).
--record(edge,   {id, in, out, label}).
--record(neighbour, {name, id}).
+%-record(vertex, {name, label}).
+-record(edge, {edge, in, out, label}).
+-record(neighbour, {name, edge}).
 %%
 %% Type is a list of
 %%  protected | private
@@ -91,7 +92,7 @@ new(Name, Type) ->
 	    N = list_to_atom("neighbours-" ++ Name),
 	    mnesia:create_table(V, [{type,set}]),
 	    mnesia:create_table(E, [{type,set}, {attributes, record_info(fields, edge)}]),
-	    mnesia:create_table(N, [{type,bag}]),
+	    mnesia:create_table(N, [{type,bag}, {attributes, record_info(fields, neighbour)}]),
 	    Fun = fun() ->
 			  mnesia:write({N, '$vid', 0}),
 			  mnesia:write({N, '$eid', 0})
@@ -589,7 +590,7 @@ do_del_vertices([V | Vs], G) ->
 do_del_vertices([], #mdigraph{}) -> true.
 
 
-do_del_nedges([{_, E}|Ns], G) ->
+do_del_nedges([{_, _, E}|Ns], G) ->
     {atomic, R} = mnesia:transaction(fun() ->
         mnesia:read({G#mdigraph.etab, E})
     end),
@@ -607,7 +608,7 @@ do_del_nedges([], #mdigraph{}) -> true.
 %%
 do_del_edges([E|Es], G) ->
     case ets:lookup(G#mdigraph.etab, E) of
-	[{E,V1,V2,_}] ->
+	[{_,E,V1,V2,_}] ->
 	    do_del_edge(E,V1,V2,G),
 	    do_del_edges(Es, G);
 	[] ->
@@ -615,17 +616,16 @@ do_del_edges([E|Es], G) ->
     end;
 do_del_edges([], #mdigraph{}) -> true.
 
-do_del_edge(E, V1, V2, G) ->
-    {atomic, Result} = mnesia:transaction(fun() ->
-        A = mnesia:select(G#mdigraph.ntab, [{{'$1', {in, V2}, E}, [], [{'$1', {in,V2}, E}]},
-				       {{'$1', {out,V1}, E}, [], [{'$1', {in,V2}, E}]}], write),
-        lists:foreach(fun(R) -> mnesia:delete_object(R) end, A),
-        
-        [ER] = mnesia:read({G#mdigraph.etab, E}),
-        mnesia:delete_object(ER)
-    end),
+do_del_edge(E, _V1, _V2, G) ->
+    {atomic, Result} =
+	mnesia:transaction(
+	  fun() ->
+		  A = mnesia:select(G#mdigraph.ntab, [{{'$1','$2', E}, [], [{{'$1','$2'}}]}], write),
+		  lists:foreach(fun(R) -> mnesia:delete(R) end, A),
+		  [ER] = mnesia:read({G#mdigraph.etab, E}),
+		  mnesia:delete_object(ER)
+	  end),
     Result.
-
 
 %%
 %% Collect either source or sink vertices.
