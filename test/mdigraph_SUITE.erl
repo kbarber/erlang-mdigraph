@@ -55,9 +55,9 @@ all() ->
      in_out_edges,
      in_out_neighbours,
      del_vertex,
-     %del_edge
+     del_edge,
      path
-     %%del_path
+     %del_path
     ].
 
 add(Config) ->
@@ -227,19 +227,19 @@ path(Config) ->
     ok.
 
 del_path(Config) ->
-%%    MG = ?config(mg, Config),
+    MG = ?config(mg, Config),
     DG = ?config(dg, Config),
     %% source
-%%    true = mdigraph:del_path(MG, "A", "D"),
+    true = mdigraph:del_path(MG, "A", "D"),
     true = digraph:del_path(DG, "A", "D"),
 
-  %%  MG_V = lists:sort(mdigraph:vertices(MG)),
+    MG_V = lists:sort(mdigraph:vertices(MG)),
     DG_V = lists:sort(digraph:vertices(DG)),
-    ct:log("-> vertices, ~p, ~p ", [ DG_V]),
+    ct:log("-> vertices, ~p, ~p ", [MG_V, DG_V]),
 
-    %%MG_E = lists:sort(mdigraph:edges(MG)),
+    MG_E = lists:sort(mdigraph:edges(MG)),
     DG_E = lists:sort(digraph:edges(DG)),
-    ct:log("-> edges, ~p, ~p ", [DG_E]),
+    ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
 
     %% MG_Path = mdigraph:get_path(MG, "E", "F"),
     %% DG_Path = digraph:get_path(DG, "E", "F"),
