@@ -26,7 +26,7 @@
 %% [mdigraph:add_vertex(G, V) || V <- Vertices].
 %% [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges].
 %% mdigraph:del_edge(G, ['$e'|0]).
--include_lib("stdlib/include/qlc.hrl").
+%%-include_lib("stdlib/include/qlc.hrl").
 
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
@@ -103,6 +103,43 @@ new(Name, Type) ->
 	    erlang:error(badarg)
     end.
 
+%% generate a random string to be used in tables name
+-spec get_random_string(integer(), string() ) -> [].
+get_random_string(Length, AllowedChars) ->
+    %% set seed for random genarator
+    {A1, A2, A3} = now(),
+    random:seed(A1, A2, A3),
+    lists:foldl(fun(_, Acc) ->
+                        [lists:nth(random:uniform(length(AllowedChars)),
+                                   AllowedChars)]
+                            ++ Acc
+                end, [], lists:seq(1, Length)).
+
+%%
+%% Check type of graph
+%%
+-spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
+      	{d_protection(), [{'cyclic', boolean()}]}.
+check_type([acyclic|Ts], A, L) ->
+    check_type(Ts, A,[{cyclic,false} | L]);
+check_type([cyclic | Ts], A, L) ->
+    check_type(Ts, A, [{cyclic,true} | L]);
+check_type([protected | Ts], _, L) ->
+    check_type(Ts, protected, L);
+check_type([private | Ts], _, L) ->
+    check_type(Ts, private, L);
+check_type([], A, L) -> {A, L};
+check_type(_, _, _) -> error.
+
+
+%%
+%% Set graph type
+%%
+-spec set_type([{'cyclic', boolean()}], mdigraph()) -> mdigraph().
+set_type([{cyclic,V} | Ks], G) ->
+    set_type(Ks, G#mdigraph{cyclic = V});
+set_type([], G) -> G.
+
 
 %% Data access functions
 
@@ -150,12 +187,6 @@ add_vertex(G, V) ->
 add_vertex(G, V, D) ->
     do_add_vertex({V, D}, G).
 
-%% CT
--spec no_vertices(mdigraph()) -> non_neg_integer().
-no_vertices(G) ->
-    mnesia:table_info(G#mdigraph.vtab, size).
-
-%% CT
 -spec del_vertex(mdigraph(), vertex()) -> 'true' | {abort, Reason::any()}.
 del_vertex(G, V) ->
     case do_del_vertex(V, G) of
@@ -170,6 +201,7 @@ del_vertex(G, V) ->
 del_vertices(G, Vs) -> 
     do_del_vertices(Vs, G).
 
+%% CT
 -spec vertex(mdigraph(), vertex()) -> {vertex(), label()} | 'false'.
 vertex(G, V) ->
     Fun = 
@@ -181,6 +213,11 @@ vertex(G, V) ->
 	end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
+
+%% CT
+-spec no_vertices(mdigraph()) -> non_neg_integer().
+no_vertices(G) ->
+    mnesia:table_info(G#mdigraph.vtab, size).
 
 % CT
 -spec vertices(mdigraph()) -> [vertex()].
@@ -231,15 +268,17 @@ neighbours(G, V, InOrOut, Index) ->
     {atomic, A} = mnesia:transaction(Fun),
     collect_elems(A, ET, Index).
 
+-spec in_edges(mdigraph(), vertex()) -> [edge()].
+in_edges(G, V) ->
+    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{in, V}, '$1'}, [], ['$1']}]) end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
-collect_elems(Keys, Table, Index) ->
-    collect_elems(Keys, Table, Index, []).
-
-collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
-    collect_elems(Keys, Table, Index,
-		  [ets:lookup_element(Table, Key, Index) |Acc]);
-collect_elems([], _, _, Acc) -> Acc.
-
+-spec out_edges(mdigraph(), vertex()) -> [edge()].
+out_edges(G, V) ->
+    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{out, V}, '$1'}, [], ['$1']}]) end,
+    {atomic,Result} = mnesia:transaction(Fun),
+    Result.
 
 %%CT
 -spec add_edge(mdigraph(), vertex(), vertex()) ->
@@ -259,6 +298,176 @@ add_edge(G, V1, V2, D) ->
 add_edge(G, E, V1, V2, D) ->
     do_add_edge({E, V1, V2, D}, G).
 
+%% CT
+del_edge(G, E) ->
+    do_del_edges([E], G).
+
+-spec del_edges(mdigraph(), [edge()]) -> 'true'.
+del_edges(G, Es) ->
+    do_del_edges(Es, G).
+
+-spec no_edges(digraph()) -> non_neg_integer().
+no_edges(G) ->
+    mnesia:table_info(G#mdigraph.etab, size).
+
+%% CT
+-spec edges(mdigraph()) -> [edge()].
+edges(G) ->
+    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
+
+
+-spec edges(mdigraph(), vertex()) -> [edge()].
+edges(G, V) ->
+    Fun = fun()->
+        mnesia:select(G#mdigraph.ntab, [{{'_',{out, V},'$1'}, [], ['$1']},
+				{{{in, V}, '$1'}, [], ['$1']}])
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
+
+-spec edge(mdigraph(), edge()) -> {edge(),vertex(),vertex(),label()} | 'false'.
+edge(G, E) ->
+    Fun = fun()->
+        mnesia:read(G#mdigraph.etab,E)
+    end,
+    {atomic, A} = mnesia:transaction(Fun),
+
+    case A of
+        [] -> false;
+        [Edge] -> Edge
+    end.
+
+-spec new_edge_id(mdigraph()) -> nonempty_improper_list('$e', non_neg_integer()).
+new_edge_id(G) ->
+    ['$e' | get_id(G, '$eid')].
+
+-spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
+new_vertex_id(G) ->
+    ['$v' | get_id(G, '$vid')].
+
+get_id(G, Id) ->
+    Fun = fun() ->
+        NT = G#mdigraph.ntab,
+        [{Tab, Id, K}] = mnesia:read(NT, Id),
+        ok = mnesia:delete_object(NT, {Tab, Id, K}, write),
+        ok = mnesia:write({NT, Id, K + 1}),
+        K
+    end,
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
+
+collect_elems(Keys, Table, Index) ->
+    collect_elems(Keys, Table, Index, []).
+
+collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
+    collect_elems(Keys, Table, Index,
+		  [ets:lookup_element(Table, Key, Index) |Acc]);
+collect_elems([], _, _, Acc) -> Acc.
+
+-spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
+do_add_vertex({V, Label}, G) ->
+    Fun = fun()->
+		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
+	  end,
+    mnesia:transaction(Fun),
+    V.
+
+%%
+%% Collect either source or sink vertices.
+%%
+collect_vertices(G, Type) ->
+    Vs = vertices(G),
+    lists:foldl(fun(V, A) ->
+        T = mnesia:transaction(fun() ->
+            mnesia:read({G#mdigraph.ntab, {Type,V}})
+        end),
+        case T of
+            {atomic, []} -> [V|A];
+            {atomic, [_|_]} -> A
+        end
+    end, [], Vs).
+
+
+do_del_vertices([V | Vs], G) ->
+    do_del_vertex(V, G),
+    do_del_vertices(Vs, G);
+do_del_vertices([], #mdigraph{}) -> true.
+
+do_del_vertex(V, G) ->
+    {atomic, E1} = mnesia:transaction(fun() -> 
+        mnesia:read({G#mdigraph.ntab, {in, V}}) 
+    end),
+    do_del_nedges(E1, G),
+
+    {atomic, E2} = mnesia:transaction(fun() -> 
+        mnesia:read({G#mdigraph.ntab, {out, V}}) 
+    end),
+    do_del_nedges(E2, G),
+
+    mnesia:transaction(fun() ->
+        mnesia:delete({G#mdigraph.vtab, V})
+    end).
+
+do_del_nedges([{_, _, E}|Ns], G) ->
+    {atomic, R} = mnesia:transaction(fun() ->
+        mnesia:read({G#mdigraph.etab, E})
+    end),
+    case R of
+        [{_, E, V1, V2, _}] ->
+            do_del_edge(E, V1, V2, G),
+            do_del_nedges(Ns, G);
+        [] -> % cannot happen
+            do_del_nedges(Ns, G)
+    end;
+do_del_nedges([], #mdigraph{}) -> true.
+
+%%
+%% Delete edges
+%%
+do_del_edges([E|Es], G) ->
+    case ets:lookup(G#mdigraph.etab, E) of
+	[{_,E,V1,V2,_}] ->
+	    do_del_edge(E,V1,V2,G),
+	    do_del_edges(Es, G);
+	[] ->
+	    do_del_edges(Es, G)
+    end;
+do_del_edges([], #mdigraph{}) -> true.
+
+do_del_edge(E, _V1, _V2, G) ->
+    {atomic, Result} =
+	mnesia:transaction(
+	  fun() ->
+		  A = mnesia:select(G#mdigraph.ntab, [{{'$1','$2', E}, [], [{{'$1','$2'}}]}], write),
+		  lists:foreach(fun(R) -> mnesia:delete(R) end, A),
+		  [ER] = mnesia:read({G#mdigraph.etab, E}),
+		  mnesia:delete_object(ER)
+	  end),
+    Result.
+
+
+-spec rm_edges([vertex(),...], mdigraph()) -> 'true'.
+rm_edges([V1, V2|Vs], G) ->
+    rm_edge(V1, V2, G),
+    rm_edges([V2|Vs], G);
+rm_edges(_, _) -> true.
+
+-spec rm_edge(vertex(), vertex(), mdigraph()) -> 'ok'.
+rm_edge(V1, V2, G) ->
+    Es = out_edges(G, V1),
+    rm_edge_0(Es, V1, V2, G).
+    
+rm_edge_0([E|Es], V1, V2, G) ->
+    case ets:lookup(G#mdigraph.etab, E) of
+	[{E, V1, V2, _}]  ->
+            do_del_edge(E, V1, V2, G),
+	    rm_edge_0(Es, V1, V2, G);
+	_ ->
+	    rm_edge_0(Es, V1, V2, G)
+    end;
+rm_edge_0([], _, _, #mdigraph{}) -> ok.
 
 %%
 %% Check that endpoints exist
@@ -292,18 +501,6 @@ other_edge_exists(#mdigraph{etab = ET}, E, V1, V2) ->
     end.
 
 
--spec acyclic_add_edge(edge(), vertex(), vertex(), label(), mdigraph()) ->
-	edge() | {'error', {'bad_edge', [vertex()]}}.
-acyclic_add_edge(_E, V1, V2, _L, _G) when V1 =:= V2 ->
-    {error, {bad_edge, [V1, V2]}};
-acyclic_add_edge(E, V1, V2, Label, G) ->
-    case get_path(G, V2, V1) of
-	false -> do_insert_edge(E, V1, V2, Label, G);
-	Path -> {error, {bad_edge, Path}}
-    end.
-
-
-
 -spec do_insert_edge(edge(), vertex(), vertex(), label(), mdigraph()) -> edge().
 do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
     %%Edge_row = {ET, E, V1, V2, Label},
@@ -315,11 +512,41 @@ do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
     {atomic, _} = mnesia:transaction(Fun),
     E.
 
+-spec acyclic_add_edge(edge(), vertex(), vertex(), label(), mdigraph()) ->
+	edge() | {'error', {'bad_edge', [vertex()]}}.
+acyclic_add_edge(_E, V1, V2, _L, _G) when V1 =:= V2 ->
+    {error, {bad_edge, [V1, V2]}};
+acyclic_add_edge(E, V1, V2, Label, G) ->
+    case get_path(G, V2, V1) of
+	false -> do_insert_edge(E, V1, V2, Label, G);
+	Path -> {error, {bad_edge, Path}}
+    end.
+
+-spec del_path(mdigraph(), vertex(), vertex()) -> 'true'.
+del_path(G, V1, V2) ->
+    case get_path(G, V1, V2) of
+	false -> true;
+	Path ->
+	    rm_edges(Path, G),
+	    del_path(G, V1, V2)
+    end.
+
+-spec get_cycle(mdigraph(), vertex()) -> [vertex(),...] | 'false'.
+get_cycle(G, V) ->
+    case one_path(out_neighbours(G, V), V, [], [V], [V], 2, G, 1) of
+	false ->
+	    case lists:member(V, out_neighbours(G, V)) of
+		true -> [V];
+		false -> false
+	    end;
+	Vs -> Vs
+    end.
 
 %% CT
 -spec get_path(digraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
 get_path(G, V1, V2) ->
     one_path(out_neighbours(G, V1), V2, [], [V1], [V1], 1, G, 1).
+
 
 %%
 %% prune_short_path (evaluate conditions on path)
@@ -348,110 +575,9 @@ one_path([], W, [{Vs,Ps}|Cont], Xs, _, Prune, G, Counter) ->
 one_path([], _, [], _, _, _, _, _Counter) -> false.
 
 
--spec out_edges(mdigraph(), vertex()) -> [edge()].
-out_edges(G, V) ->
-    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{out, V}, '$1'}, [], ['$1']}]) end,
-    {atomic,Result} = mnesia:transaction(Fun),
-    Result.
-
--spec in_edges(mdigraph(), vertex()) -> [edge()].
-in_edges(G, V) ->
-    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{in, V}, '$1'}, [], ['$1']}]) end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.
-
-%% CT
-del_edge(G, E) ->
-    do_del_edges([E], G).
-
--spec del_edges(mdigraph(), [edge()]) -> 'true'.
-del_edges(G, Es) ->
-    do_del_edges(Es, G).
-
--spec del_path(mdigraph(), vertex(), vertex()) -> 'true'.
-del_path(G, V1, V2) ->
-    case get_path(G, V1, V2) of
-	false -> true;
-	Path ->
-	    rm_edges(Path, G),
-	    del_path(G, V1, V2)
-    end.
-
--spec rm_edges([vertex(),...], mdigraph()) -> 'true'.
-rm_edges([V1, V2|Vs], G) ->
-    rm_edge(V1, V2, G),
-    rm_edges([V2|Vs], G);
-rm_edges(_, _) -> true.
-
--spec rm_edge(vertex(), vertex(), mdigraph()) -> 'ok'.
-rm_edge(V1, V2, G) ->
-    Es = out_edges(G, V1),
-    rm_edge_0(Es, V1, V2, G).
-    
-rm_edge_0([E|Es], V1, V2, G) ->
-    case ets:lookup(G#mdigraph.etab, E) of
-	[{E, V1, V2, _}]  ->
-            do_del_edge(E, V1, V2, G),
-	    rm_edge_0(Es, V1, V2, G);
-	_ ->
-	    rm_edge_0(Es, V1, V2, G)
-    end;
-rm_edge_0([], _, _, #mdigraph{}) -> ok.
-
-
-%% CT
--spec edges(mdigraph()) -> [edge()].
-edges(G) ->
-    Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.
-
-
--spec edges(mdigraph(), vertex()) -> [edge()].
-edges(G, V) ->
-    Fun = fun()->
-        mnesia:select(G#mdigraph.ntab, [{{'_',{out, V},'$1'}, [], ['$1']},
-				{{{in, V}, '$1'}, [], ['$1']}])
-    end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.
-
--spec edge(mdigraph(), edge()) -> {edge(),vertex(),vertex(),label()} | 'false'.
-edge(G, E) ->
-    Fun = fun()->
-        mnesia:read(G#mdigraph.etab,E)
-    end,
-    {atomic, A} = mnesia:transaction(Fun),
-
-    case A of
-        [] -> false;
-        [Edge] -> Edge
-    end.
-
-
--spec no_edges(digraph()) -> non_neg_integer().
-no_edges(G) ->
-    mnesia:table_info(G#mdigraph.etab, size).
-
-
-
--spec get_cycle(mdigraph(), vertex()) -> [vertex(),...] | 'false'.
-get_cycle(G, V) ->
-    case one_path(out_neighbours(G, V), V, [], [V], [V], 2, G, 1) of
-	false ->
-	    case lists:member(V, out_neighbours(G, V)) of
-		true -> [V];
-		false -> false
-	    end;
-	Vs -> Vs
-    end.
-
-
-
 %%
 %% Like get_cycle/2, but a cycle of length one is preferred.
 %%
-
 -spec get_short_cycle(mdigraph(), vertex()) -> [vertex(),...] | 'false'.
 get_short_cycle(G, V) ->
     get_short_path(G, V, V).
@@ -460,7 +586,6 @@ get_short_cycle(G, V) ->
 %% Like get_path/3, but using a breadth-first search makes it possible
 %% to find a short path.
 %%
-
 -spec get_short_path(mdigraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
 get_short_path(G, V1, V2) ->
     T = new(),
@@ -506,144 +631,3 @@ queue_out_neighbours(V, G, Q0) ->
     lists:foldl(fun(E, Q) -> queue:in(E, Q) end, Q0, out_edges(G, V)).
 
 
-%% internal function
-
-%%
-%% Check type of graph
-%%
--spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
-      	{d_protection(), [{'cyclic', boolean()}]}.
-check_type([acyclic|Ts], A, L) ->
-    check_type(Ts, A,[{cyclic,false} | L]);
-check_type([cyclic | Ts], A, L) ->
-    check_type(Ts, A, [{cyclic,true} | L]);
-check_type([protected | Ts], _, L) ->
-    check_type(Ts, protected, L);
-check_type([private | Ts], _, L) ->
-    check_type(Ts, private, L);
-check_type([], A, L) -> {A, L};
-check_type(_, _, _) -> error.
-
-
-%%
-%% Set graph type
-%%
--spec set_type([{'cyclic', boolean()}], mdigraph()) -> mdigraph().
-set_type([{cyclic,V} | Ks], G) ->
-    set_type(Ks, G#mdigraph{cyclic = V});
-set_type([], G) -> G.
-
-%% generate a random string to be used in tables name
--spec get_random_string(integer(), string() ) -> [].
-get_random_string(Length, AllowedChars) ->
-    %% set seed for random genarator
-    {A1, A2, A3} = now(),
-    random:seed(A1, A2, A3),
-    lists:foldl(fun(_, Acc) ->
-                        [lists:nth(random:uniform(length(AllowedChars)),
-                                   AllowedChars)]
-                            ++ Acc
-                end, [], lists:seq(1, Length)).
-
--spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
-do_add_vertex({V, Label}, G) ->
-    Fun = fun()->
-		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
-	  end,
-    mnesia:transaction(Fun),
-    V.
-
--spec new_vertex_id(mdigraph()) -> nonempty_improper_list('$v', non_neg_integer()).
-new_vertex_id(G) ->
-    ['$v' | get_id(G, '$vid')].
-
--spec new_edge_id(mdigraph()) -> nonempty_improper_list('$e', non_neg_integer()).
-new_edge_id(G) ->
-    ['$e' | get_id(G, '$eid')].
-
-get_id(G, Id) ->
-    Fun = fun() ->
-        NT = G#mdigraph.ntab,
-        [{Tab, Id, K}] = mnesia:read(NT, Id),
-        ok = mnesia:delete_object(NT, {Tab, Id, K}, write),
-        ok = mnesia:write({NT, Id, K + 1}),
-        K
-    end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.
-
-
-
-do_del_vertex(V, G) ->
-    {atomic, E1} = mnesia:transaction(fun() -> 
-        mnesia:read({G#mdigraph.ntab, {in, V}}) 
-    end),
-    do_del_nedges(E1, G),
-
-    {atomic, E2} = mnesia:transaction(fun() -> 
-        mnesia:read({G#mdigraph.ntab, {out, V}}) 
-    end),
-    do_del_nedges(E2, G),
-
-    mnesia:transaction(fun() ->
-        mnesia:delete({G#mdigraph.vtab, V})
-    end).
-
-
-do_del_vertices([V | Vs], G) ->
-    do_del_vertex(V, G),
-    do_del_vertices(Vs, G);
-do_del_vertices([], #mdigraph{}) -> true.
-
-
-do_del_nedges([{_, _, E}|Ns], G) ->
-    {atomic, R} = mnesia:transaction(fun() ->
-        mnesia:read({G#mdigraph.etab, E})
-    end),
-    case R of
-        [{_, E, V1, V2, _}] ->
-            do_del_edge(E, V1, V2, G),
-            do_del_nedges(Ns, G);
-        [] -> % cannot happen
-            do_del_nedges(Ns, G)
-    end;
-do_del_nedges([], #mdigraph{}) -> true.
-
-%%
-%% Delete edges
-%%
-do_del_edges([E|Es], G) ->
-    case ets:lookup(G#mdigraph.etab, E) of
-	[{_,E,V1,V2,_}] ->
-	    do_del_edge(E,V1,V2,G),
-	    do_del_edges(Es, G);
-	[] ->
-	    do_del_edges(Es, G)
-    end;
-do_del_edges([], #mdigraph{}) -> true.
-
-do_del_edge(E, _V1, _V2, G) ->
-    {atomic, Result} =
-	mnesia:transaction(
-	  fun() ->
-		  A = mnesia:select(G#mdigraph.ntab, [{{'$1','$2', E}, [], [{{'$1','$2'}}]}], write),
-		  lists:foreach(fun(R) -> mnesia:delete(R) end, A),
-		  [ER] = mnesia:read({G#mdigraph.etab, E}),
-		  mnesia:delete_object(ER)
-	  end),
-    Result.
-
-%%
-%% Collect either source or sink vertices.
-%%
-collect_vertices(G, Type) ->
-    Vs = vertices(G),
-    lists:foldl(fun(V, A) ->
-        T = mnesia:transaction(fun() ->
-            mnesia:read({G#mdigraph.ntab, {Type,V}})
-        end),
-        case T of
-            {atomic, []} -> [V|A];
-            {atomic, [_|_]} -> A
-        end
-    end, [], Vs).
