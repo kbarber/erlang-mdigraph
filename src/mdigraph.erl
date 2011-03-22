@@ -360,7 +360,7 @@ in_edges(G, V) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-
+%% CT
 del_edge(G, E) ->
     do_del_edges([E], G).
 
@@ -399,12 +399,12 @@ rm_edge_0([E|Es], V1, V2, G) ->
 rm_edge_0([], _, _, #mdigraph{}) -> ok.
 
 
+%% CT
 -spec edges(mdigraph()) -> [edge()].
 edges(G) ->
     Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
-
 
 
 -spec edges(mdigraph(), vertex()) -> [edge()].
@@ -644,27 +644,3 @@ collect_vertices(G, Type) ->
             {atomic, [_|_]} -> A
         end
     end, [], Vs).
-
-
-%%
-%% Collect elements for a index in a tuple
-%%
-% TODO: how do I replicate lookup_element easily here?
-%% collect_elems(Keys, Table, Index) ->
-%%     collect_elems(Keys, Table, Index, []).
-
-%% collect_elems([{_,Key}|Keys], Table, Index, Acc) ->
-%%     collect_elems(Keys, Table, Index,
-%% 		  [ets:lookup_element(Table, Key, Index)|Acc]);
-%% collect_elems([], _, _, Acc) -> Acc.
-
-%% %%
-%% %% Collect elements for a index in a tuple
-%% %%
-%% collect_elems(Keys, Table, Index) ->
-%%     collect_elems(Keys, Table, Index, []).
-
-%% collect_elems([{_,Key}|Keys], Table, Index, Acc) ->
-%%     collect_elems(Keys, Table, Index,
-%% 		  [ets:lookup_element(Table, Key, Index)|Acc]);
-%% collect_elems([], _, _, Acc) -> Acc.
