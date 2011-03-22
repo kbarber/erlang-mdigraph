@@ -52,10 +52,12 @@ all() ->
      add,
      source_sink,
      in_out_degree,
+     in_out_edges,
      in_out_neighbours,
-     del_vertex,
-     del_edge,
-     path
+     del_vertex
+     %del_edge
+     %path
+     %%del_path
     ].
 
 add(Config) ->
@@ -102,6 +104,24 @@ in_out_degree(Config) ->
     ct:log("-> Out_degree, ~p, ~p ", [MG_Out_degree, DG_Out_degree]),
     MG_Out_degree = DG_Out_degree,
     ok.
+
+
+in_out_edges(Config) ->
+    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    Vertices = ?config(vertices, Config),
+    %% in degree
+    MG_In_E = [ {V, mdigraph:in_edges(MG, V)} || V <- Vertices ],
+    DG_In_E = [ {V, digraph:in_edges(DG, V)} || V <- Vertices ],
+    ct:log("-> In_edges, ~p, ~p ", [MG_In_E, DG_In_E]),
+    MG_In_E = DG_In_E,
+    %% out degree
+    MG_Out_E = [ {V, mdigraph:out_edges(MG, V)} || V <- Vertices ],
+    DG_Out_E = [ {V, digraph:out_edges(DG, V)} || V <- Vertices ],
+    ct:log("-> Out_edges, ~p, ~p ", [MG_Out_E, DG_Out_E]),
+    MG_Out_E = DG_Out_E,
+    ok.
+
 
 in_out_neighbours(Config) ->
     MG = ?config(mg, Config),
@@ -193,4 +213,33 @@ path(Config) ->
     DG_Path = digraph:get_path(DG, "A", "E"),
     ct:log("-> path, ~p, ~p ", [MG_Path, DG_Path]),
     MG_Path = DG_Path,
+
+    MG_S_Path = mdigraph:get_short_path(MG, "A", "E"),
+    DG_S_Path = digraph:get_short_path(DG, "A", "E"),
+    ct:log("-> short path, ~p, ~p ", [MG_S_Path, DG_S_Path]),
+    MG_S_Path = DG_S_Path,
+
     ok.
+
+del_path(Config) ->
+%%    MG = ?config(mg, Config),
+    DG = ?config(dg, Config),
+    %% source
+%%    true = mdigraph:del_path(MG, "A", "D"),
+    true = digraph:del_path(DG, "A", "D"),
+
+  %%  MG_V = lists:sort(mdigraph:vertices(MG)),
+    DG_V = lists:sort(digraph:vertices(DG)),
+    ct:log("-> vertices, ~p, ~p ", [ DG_V]),
+
+    %%MG_E = lists:sort(mdigraph:edges(MG)),
+    DG_E = lists:sort(digraph:edges(DG)),
+    ct:log("-> edges, ~p, ~p ", [DG_E]),
+
+    %% MG_Path = mdigraph:get_path(MG, "E", "F"),
+    %% DG_Path = digraph:get_path(DG, "E", "F"),
+    %% ct:log("-> path, ~p, ~p ", [MG_Path, DG_Path]),
+    %% MG_Path = DG_Path,
+    ok.
+
+

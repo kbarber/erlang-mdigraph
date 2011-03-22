@@ -270,13 +270,13 @@ neighbours(G, V, InOrOut, Index) ->
 
 -spec in_edges(mdigraph(), vertex()) -> [edge()].
 in_edges(G, V) ->
-    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{in, V}, '$1'}, [], ['$1']}]) end,
+    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {in, V}, '$2'}, [], ['$2']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
 -spec out_edges(mdigraph(), vertex()) -> [edge()].
 out_edges(G, V) ->
-    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{{out, V}, '$1'}, [], ['$1']}]) end,
+    Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {out, V}, '$2'}, [], ['$2']}]) end,
     {atomic,Result} = mnesia:transaction(Fun),
     Result.
 
@@ -546,7 +546,6 @@ get_cycle(G, V) ->
 -spec get_path(digraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
 get_path(G, V1, V2) ->
     one_path(out_neighbours(G, V1), V2, [], [V1], [V1], 1, G, 1).
-
 
 %%
 %% prune_short_path (evaluate conditions on path)
