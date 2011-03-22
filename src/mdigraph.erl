@@ -306,11 +306,11 @@ acyclic_add_edge(E, V1, V2, Label, G) ->
 
 -spec do_insert_edge(edge(), vertex(), vertex(), label(), mdigraph()) -> edge().
 do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
-    Edge_row = {ET, E, V1, V2, Label},
+    %%Edge_row = {ET, E, V1, V2, Label},
     Fun = fun() ->
         mnesia:write({NT, {out, V1}, E}),
         mnesia:write({NT, {in, V2}, E}),
-        mnesia:write(Edge_row)
+        mnesia:write({ET, E, V1, V2, Label})
     end,
     {atomic, _} = mnesia:transaction(Fun),
     E.
