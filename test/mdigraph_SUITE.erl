@@ -54,9 +54,9 @@ all() ->
      in_out_degree,
      in_out_edges,
      in_out_neighbours,
-     del_vertex
+     del_vertex,
      %del_edge
-     %path
+     path
      %%del_path
     ].
 
@@ -73,6 +73,12 @@ add(Config) ->
     DG_E = lists:sort(digraph:edges(DG)),
     ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
     MG_E = DG_E,
+    %% single edges
+    MG_E_2 = lists:sort([mdigraph:edge(MG, E) || E <- MG_E]),
+    DG_E_2 = lists:sort([digraph:edge(DG, E) || E <- DG_E]),
+    %%DG_E = lists:sort(digraph:edges(DG)),
+    ct:log("-> edges, ~p, ~p ", [MG_E_2, DG_E_2]),
+    MG_E_2 = DG_E_2,
     ok.
 
 source_sink(Config) ->
@@ -218,7 +224,6 @@ path(Config) ->
     DG_S_Path = digraph:get_short_path(DG, "A", "E"),
     ct:log("-> short path, ~p, ~p ", [MG_S_Path, DG_S_Path]),
     MG_S_Path = DG_S_Path,
-
     ok.
 
 del_path(Config) ->

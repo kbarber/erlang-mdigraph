@@ -268,12 +268,14 @@ neighbours(G, V, InOrOut, Index) ->
     {atomic, A} = mnesia:transaction(Fun),
     collect_elems(A, ET, Index).
 
+%% CT
 -spec in_edges(mdigraph(), vertex()) -> [edge()].
 in_edges(G, V) ->
     Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {in, V}, '$2'}, [], ['$2']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
+%% CT
 -spec out_edges(mdigraph(), vertex()) -> [edge()].
 out_edges(G, V) ->
     Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {out, V}, '$2'}, [], ['$2']}]) end,
@@ -336,7 +338,7 @@ edge(G, E) ->
 
     case A of
         [] -> false;
-        [Edge] -> Edge
+        [{_, Edge, V1, V2, Label}] -> {Edge, V1, V2, Label}
     end.
 
 -spec new_edge_id(mdigraph()) -> nonempty_improper_list('$e', non_neg_integer()).
