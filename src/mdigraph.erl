@@ -536,6 +536,9 @@ set_type([], G) -> G.
 %% generate a random string to be used in tables name
 -spec get_random_string(integer(), string() ) -> [].
 get_random_string(Length, AllowedChars) ->
+    %% set seed for random genarator
+    {A1, A2, A3} = now(),
+    random:seed(A1, A2, A3),
     lists:foldl(fun(_, Acc) ->
                         [lists:nth(random:uniform(length(AllowedChars)),
                                    AllowedChars)]
