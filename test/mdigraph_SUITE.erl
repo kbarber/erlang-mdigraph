@@ -56,8 +56,8 @@ all() ->
      in_out_neighbours,
      del_vertex,
      del_edge,
-     path
-     %del_path
+     path,
+     del_path
     ].
 
 add(Config) ->
@@ -204,6 +204,11 @@ del_edge(Config) ->
     DG_E_3 = lists:sort(digraph:edges(DG)),
     ct:log("-> edges, ~p, ~p ", [MG_E_3, DG_E_3]),
     MG_E_3 = DG_E_3,
+    %% check number of edges
+    MG_N = mdigraph:no_edges(MG),
+    DG_N = digraph:no_edges(DG),
+    ct:log("-> number of edges, ~p, ~p ", [MG_N, DG_N]),
+    MG_N = DG_N,
     %% check vertices
     MG_V = lists:sort(mdigraph:vertices(MG)),
     DG_V = lists:sort(digraph:vertices(DG)),
@@ -230,8 +235,13 @@ del_path(Config) ->
     MG = ?config(mg, Config),
     DG = ?config(dg, Config),
     %% source
-    true = mdigraph:del_path(MG, "A", "D"),
-    true = digraph:del_path(DG, "A", "D"),
+    true = mdigraph:del_path(MG, "A", "B"),
+    true = digraph:del_path(DG, "A", "B"),
+    %% check is alternative path exist 
+    MG_P = mdigraph:get_path(MG, "A", "D"),
+    DG_P = digraph:get_path(DG, "A", "D"),
+    ct:log("-> path, ~p, ~p ", [MG_P, DG_P]),
+    MG_P = DG_P,
 
     MG_V = lists:sort(mdigraph:vertices(MG)),
     DG_V = lists:sort(digraph:vertices(DG)),
@@ -241,10 +251,17 @@ del_path(Config) ->
     DG_E = lists:sort(digraph:edges(DG)),
     ct:log("-> edges, ~p, ~p ", [MG_E, DG_E]),
 
-    %% MG_Path = mdigraph:get_path(MG, "E", "F"),
-    %% DG_Path = digraph:get_path(DG, "E", "F"),
-    %% ct:log("-> path, ~p, ~p ", [MG_Path, DG_Path]),
-    %% MG_Path = DG_Path,
-    ok.
+    true = mdigraph:del_path(MG, "D", "E"),
+    true = digraph:del_path(DG, "D", "E"),
 
+    MG_N = mdigraph:no_edges(MG),
+    DG_N = digraph:no_edges(DG),
+    ct:log("-> no edges, ~p, ~p ", [MG_N, DG_N]),
+    MG_N = DG_N,
+
+    MG_Path = mdigraph:get_path(MG, "A", "F"),
+    DG_Path = digraph:get_path(DG, "A", "F"),
+    ct:log("-> path, ~p, ~p ", [MG_Path, DG_Path]),
+    MG_Path = DG_Path,
+    ok.
 
