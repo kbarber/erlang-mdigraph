@@ -23,6 +23,10 @@ To clean::
 
   make clean
 
+To run Eunit and CT tests::
+ 
+  make test
+
 To create documentation::
 
   make docs

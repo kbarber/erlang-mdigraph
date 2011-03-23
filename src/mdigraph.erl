@@ -18,16 +18,6 @@
 %%
 -module(mdigraph).
 
-%% to test:
-%%mnesia:start().
-%% Edges =  [{"A", "B"}, {"A", "C"}, {"B", "D"}, {"C", "D"}, {"D", "E"}, {"E", "F"}].
-%% Vertices = ["A", "B", "C", "D", "E", "F"].
-%% G = mdigraph:new().
-%% [mdigraph:add_vertex(G, V) || V <- Vertices].
-%% [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges].
-%% mdigraph:del_edge(G, ['$e'|0]).
-%%-include_lib("stdlib/include/qlc.hrl").
-%%-export([init_test/0, select/4]).
 -export([new/0, new/1, delete/1, info/1]).
 -export([add_vertex/1, add_vertex/2, add_vertex/3]).
 -export([del_vertex/2, del_vertices/2]).
@@ -76,19 +66,6 @@
 -type d_cyclicity()  :: 'acyclic' | 'cyclic'.
 -type d_type()       :: d_cyclicity() | d_protection().
 
-init_test() ->
-    Edges =  [{"A", "B"}, {"A", "C"}, {"B", "D"}, {"C", "D"}, {"D", "E"}, {"E", "F"}],
-    Vertices = ["A", "B", "C", "D", "E", "F"],
-    G = mdigraph:new(),
-    G1 = digraph:new(),
-    [mdigraph:add_vertex(G, V) || V <- Vertices],
-    [digraph:add_vertex(G1, V) || V <- Vertices],
-    [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges],
-    [digraph:add_edge(G1, V1, V2) || {V1, V2} <- Edges],
-    {G, G1}.
-
-
-%% CT covered
 -spec new() -> mdigraph().
 new() -> new([]).
 
@@ -154,8 +131,6 @@ set_type([], G) -> G.
 
 
 %% Data access functions
-
-%% CT covered
 -spec delete(mdigraph()) -> 'true' | {aborted, any()}.
 delete(G) ->
     case 
@@ -168,8 +143,6 @@ delete(G) ->
 	{aborted, Reason} -> {aborted, Reason}
     end.
 
-
-%% EU covered
 -spec info(mdigraph()) -> [{'cyclicity', d_cyclicity()} |
 			   {'memory', non_neg_integer()} |
 			   {'protection', d_protection()}].
@@ -186,7 +159,6 @@ info(G) ->
     Memory = mnesia:table_info(VT, memory) + mnesia:table_info(ET, memory) + mnesia:table_info(NT, memory),
     [{cyclicity, Cyclicity}, {memory, Memory}, {protection, Protection}].
 
-%% CT covered
 -spec add_vertex(mdigraph()) -> vertex().
 add_vertex(G) ->
     do_add_vertex({new_vertex_id(G), []}, G).
@@ -208,12 +180,11 @@ del_vertex(G, V) ->
 	    {abort, Reason}
     end.
 
-%% CT
+
 -spec del_vertices(mdigraph(), [vertex()]) -> 'true'.
 del_vertices(G, Vs) -> 
     do_del_vertices(Vs, G).
 
-%% CT
 -spec vertex(mdigraph(), vertex()) -> {vertex(), label()} | 'false'.
 vertex(G, V) ->
     Fun = 
@@ -226,34 +197,29 @@ vertex(G, V) ->
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-%% CT
+
 -spec no_vertices(mdigraph()) -> non_neg_integer().
 no_vertices(G) ->
     mnesia:table_info(G#mdigraph.vtab, size).
 
-% CT
 -spec vertices(mdigraph()) -> [vertex()].
 vertices(G) ->
     Fun = fun()-> mnesia:select(G#mdigraph.vtab, [{{'_', '$1', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-%% CT
 -spec source_vertices(mdigraph()) -> [vertex()].
 source_vertices(G) ->
     collect_vertices(G, in).
 
-%% CT
 -spec sink_vertices(mdigraph()) -> [vertex()].
 sink_vertices(G) ->
     collect_vertices(G, out).
 
-%% CT
 -spec in_degree(mdigraph(), vertex()) -> non_neg_integer().
 in_degree(G, V) ->
     degree(G, V, in).
 
-%% CT
 -spec out_degree(digraph(), vertex()) -> non_neg_integer().
 out_degree(G, V) ->
     degree(G, V, out).
@@ -263,12 +229,10 @@ degree(G, V, InOrOut) ->
     {atomic, A} = mnesia:transaction(Fun),
     length(A).
 
-%% CT
 -spec in_neighbours(mdigraph(), vertex()) -> [vertex()].
 in_neighbours(G, V) ->
     neighbours(G, V, in, 3).
 
-%% CT
 -spec out_neighbours(mdigraph(), vertex()) -> [vertex()].
 out_neighbours(G, V) ->
     neighbours(G, V, out, 4).
@@ -280,21 +244,18 @@ neighbours(G, V, InOrOut, Index) ->
     {atomic, A} = mnesia:transaction(Fun),
     collect_elems(A, ET, Index).
 
-%% CT
 -spec in_edges(mdigraph(), vertex()) -> [edge()].
 in_edges(G, V) ->
     Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {in, V}, '$2'}, [], ['$2']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
 
-%% CT
 -spec out_edges(mdigraph(), vertex()) -> [edge()].
 out_edges(G, V) ->
     Fun = fun() -> mnesia:select(G#mdigraph.ntab, [{{'$1', {out, V}, '$2'}, [], ['$2']}]) end,
     {atomic,Result} = mnesia:transaction(Fun),
     Result.
 
-%%CT
 -spec add_edge(mdigraph(), vertex(), vertex()) ->
 	 edge() | {'error', add_edge_err_rsn()}.
 add_edge(G, V1, V2) ->
@@ -310,7 +271,6 @@ add_edge(G, V1, V2, D) ->
 add_edge(G, E, V1, V2, D) ->
     do_add_edge({E, V1, V2, D}, G).
 
-%% CT
 del_edge(G, E) ->
     do_del_edges([E], G).
 
@@ -318,18 +278,15 @@ del_edge(G, E) ->
 del_edges(G, Es) ->
     do_del_edges(Es, G).
 
-%% CT
 -spec no_edges(digraph()) -> non_neg_integer().
 no_edges(G) ->
     mnesia:table_info(G#mdigraph.etab, size).
 
-%% CT
 -spec edges(mdigraph()) -> [edge()].
 edges(G) ->
     Fun = fun()-> mnesia:select(G#mdigraph.etab, [{{'_', '$1', '_', '_', '_'}, [], ['$1']}]) end,
     {atomic, Result} = mnesia:transaction(Fun),
     Result.
-
 
 -spec edges(mdigraph(), vertex()) -> [edge()].
 edges(G, V) ->
@@ -449,15 +406,6 @@ do_del_edges([E|Es], G) ->
     end;
 do_del_edges([], #mdigraph{}) -> true.
 
-%% select(E, V1, V2, G) ->
-%%     {atomic, Result} =
-%% 	mnesia:transaction(
-%% 	  fun() ->
-%% 		  A = mnesia:select(G#mdigraph.ntab, [{{'$1','$2', E}, [], [{{'$1','$2', E}}]}], write)
-%% 	  end),
-%%     Result.
-
-%% incorrect, review how 
 do_del_edge(E, _V1, _V2, G) ->
     {atomic, Result} =
 	mnesia:transaction(
@@ -523,7 +471,6 @@ other_edge_exists(#mdigraph{etab = ET}, E, V1, V2) ->
 
 -spec do_insert_edge(edge(), vertex(), vertex(), label(), mdigraph()) -> edge().
 do_insert_edge(E, V1, V2, Label, #mdigraph{ntab=NT, etab=ET}) ->
-    %%Edge_row = {ET, E, V1, V2, Label},
     Fun = fun() ->
         mnesia:write({NT, {out, V1}, E}),
         mnesia:write({NT, {in, V2}, E}),
@@ -542,7 +489,6 @@ acyclic_add_edge(E, V1, V2, Label, G) ->
 	Path -> {error, {bad_edge, Path}}
     end.
 
-%% CT
 -spec del_path(mdigraph(), vertex(), vertex()) -> 'true'.
 del_path(G, V1, V2) ->
     case get_path(G, V1, V2) of
@@ -563,7 +509,6 @@ get_cycle(G, V) ->
 	Vs -> Vs
     end.
 
-%% CT
 -spec get_path(mdigraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
 get_path(G, V1, V2) ->
     one_path(out_neighbours(G, V1), V2, [], [V1], [V1], 1, G, 1).
@@ -649,4 +594,3 @@ follow_path(V, T, P) ->
 
 queue_out_neighbours(V, G, Q0) ->
     lists:foldl(fun(E, Q) -> queue:in(E, Q) end, Q0, out_edges(G, V)).
-
