@@ -39,14 +39,12 @@
 %%
 
 -type vertices() :: [mdigraph:vertex()].
--type mdigraph() :: [mdigraph:mdigraph()]
+-type mdigraph() :: [mdigraph:mdigraph()].
 
 %%
 %%  Exported functions
 %%
-
 -spec components(mdigraph()) -> vertices().
-
 components(G) ->
     forest(G, fun inout/3).
 
