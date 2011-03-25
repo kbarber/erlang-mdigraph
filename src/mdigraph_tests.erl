@@ -8,12 +8,6 @@
 -module(mdigraph_tests).
 -include_lib("eunit/include/eunit.hrl").
 
-% This record is copied from the source for testing convenience
-%% -record(mdigraph, {vtab = notable :: mnesia:tab(),
-%% 		   etab = notable :: mnesia:tab(),
-%% 		   ntab = notable :: mnesia:tab(),
-%% 		   cyclic = true  :: boolean()}).
-
 new_test_() ->
     {setup, fun() -> mnesia:start() end, fun(ok) -> mnesia:stop() end,  
      [
