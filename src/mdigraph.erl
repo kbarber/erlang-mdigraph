@@ -337,8 +337,8 @@ collect_elems([], _, _, Acc) -> Acc.
 %% replacement for ets:lookup_element(Table, Key, Index), probably there is a better way of doing lookup
 
 lookup(Table, Key) ->
-    {atomic, R} = mnesia:transaction(fun() -> mnesia:read(Table, Key) end),
-    R.
+    %%{atomic, R} = mnesia:transaction(fun() -> mnesia:read(Table, Key) end),
+    mnesia:ets(fun() -> mnesia:read(Table, Key) end).
 lookup(Table, Key, Index) ->
     [R] = lookup(Table, Key),
     element(Index, R).
@@ -449,6 +449,7 @@ rm_edge_0([], _, _, #mdigraph{}) -> ok.
 -spec do_add_edge({edge(), vertex(), vertex(), label()}, mdigraph()) ->
 	edge() | {'error', add_edge_err_rsn()}.
 do_add_edge({E, V1, V2, Label}, G) ->
+    %% probably need to replace ets:member with some mnesia func.
     case ets:member(G#mdigraph.vtab, V1) of
 	false -> erlang:error({bad_vertex, V1});
 	true  ->
