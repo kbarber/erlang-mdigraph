@@ -330,21 +330,22 @@ get_id(G, Id) ->
 
 collect_elems(Keys, Table, Index) ->
     collect_elems(Keys, Table, Index, []).
-
 collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
     collect_elems(Keys, Table, Index, [lookup(Table, Key, Index) | Acc ]);
 collect_elems([], _, _, Acc) -> Acc.
 
 %% replacement for ets:lookup_element(Table, Key, Index), probably there is a better way of doing lookup
+
+lookup(Table, Key) ->
+    {atomic, R} = mnesia:transaction(fun() -> mnesia:read(Table, Key) end),
+    R.
 lookup(Table, Key, Index) ->
-    {atomic, [R]} = mnesia:transaction(fun() -> mnesia:read(Table, Key) end),
+    [R] = lookup(Table, Key),
     element(Index, R).
 
 -spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
 do_add_vertex({V, Label}, G) ->
-    Fun = fun()->
-		  mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write)
-	  end,
+    Fun = fun()-> mnesia:write(G#mdigraph.vtab, {G#mdigraph.vtab, V, Label}, write) end,
     mnesia:transaction(Fun),
     V.
 
@@ -401,7 +402,7 @@ do_del_nedges([], #mdigraph{}) -> true.
 %% Delete edges
 %%
 do_del_edges([E|Es], G) ->
-    case ets:lookup(G#mdigraph.etab, E) of
+    case lookup(G#mdigraph.etab, E) of
 	[{_,E,V1,V2,_}] ->
 	    do_del_edge(E,V1,V2,G),
 	    do_del_edges(Es, G);
@@ -433,7 +434,7 @@ rm_edge(V1, V2, G) ->
     rm_edge_0(Es, V1, V2, G).
     
 rm_edge_0([E|Es], V1, V2, G) ->
-    case ets:lookup(G#mdigraph.etab, E) of
+    case lookup(G#mdigraph.etab, E) of
 	[{_, E, V1, V2, _}]  ->
             do_del_edge(E, V1, V2, G),
 	    rm_edge_0(Es, V1, V2, G);
@@ -465,7 +466,7 @@ do_add_edge({E, V1, V2, Label}, G) ->
     end.
 
 other_edge_exists(#mdigraph{etab = ET}, E, V1, V2) ->
-    case ets:lookup(ET, E) of
+    case lookup(ET, E) of
         [{_, E, Vert1, Vert2, _}] when Vert1 =/= V1; Vert2 =/= V2 ->
             true;
         _ ->
