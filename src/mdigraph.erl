@@ -332,9 +332,13 @@ collect_elems(Keys, Table, Index) ->
     collect_elems(Keys, Table, Index, []).
 
 collect_elems([{_, _, Key} | Keys], Table, Index, Acc) ->
-    collect_elems(Keys, Table, Index,
-		  [ets:lookup_element(Table, Key, Index) |Acc]);
+    collect_elems(Keys, Table, Index, [lookup(Table, Key, Index) | Acc ]);
 collect_elems([], _, _, Acc) -> Acc.
+
+%% replacement for ets:lookup_element(Table, Key, Index), probably there is a better way of doing lookup
+lookup(Table, Key, Index) ->
+    {atomic, [R]} = mnesia:transaction(fun() -> mnesia:read(Table, Key) end),
+    element(Index, R).
 
 -spec do_add_vertex({vertex(), label()}, mdigraph()) -> vertex().
 do_add_vertex({V, Label}, G) ->
@@ -445,13 +449,13 @@ rm_edge_0([], _, _, #mdigraph{}) -> ok.
 	edge() | {'error', add_edge_err_rsn()}.
 do_add_edge({E, V1, V2, Label}, G) ->
     case ets:member(G#mdigraph.vtab, V1) of
-	false -> erlang:error({bad_vertex, V1}); %%{error, {bad_vertex, V1}};
+	false -> erlang:error({bad_vertex, V1});
 	true  ->
 	    case ets:member(G#mdigraph.vtab, V2) of
-		false -> erlang:error({bad_vertex, V2}); %% {error, {bad_vertex, V2}};
+		false -> erlang:error({bad_vertex, V2});
                 true ->
                     case other_edge_exists(G, E, V1, V2) of
-                        true -> erlang:error({bad_edge, [V1, V2]});%%{error, {bad_edge, [V1, V2]}};
+                        true -> erlang:error({bad_edge, [V1, V2]});
                         false when G#mdigraph.cyclic =:= false ->
                             acyclic_add_edge(E, V1, V2, Label, G);
                         false ->
