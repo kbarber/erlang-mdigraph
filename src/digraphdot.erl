@@ -2,8 +2,8 @@
 -compile([export_all]).
 
 -define(QUOTED(Val), $",Val,$"). 
--define(ROW(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
--define(A_ROW(V1, V2), [atom_to_list(V1), "=", V2, ";\n"]).
+-define(EDGE(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
+-define(ATTR(V1, V2), [atom_to_list(V1), "=", V2, ";\n"]).
 
 %%-type vertices() :: [mdigraph:vertex()].
 -type mdigraph() :: [mdigraph:mdigraph()].
@@ -51,14 +51,14 @@ write_dot({edges, Edges}, Acc) ->
 write_edges([], Acc) ->
     lists:reverse(["}\n" | Acc]);
 write_edges([{V1, V2} | T], Acc) ->
-    Row = ?ROW(V1, V2),
+    Row = ?EDGE(V1, V2),
     write_edges(T, [Row | Acc]).
 
 %% writes edges
 write_attr([], Acc) ->
     Acc;
 write_attr([{V1, V2} | T], Acc) ->
-    Row = ?A_ROW(V1, V2),
+    Row = ?ATTR(V1, V2),
     write_attr(T, [Row | Acc]).
 
 
