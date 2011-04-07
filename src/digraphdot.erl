@@ -1,12 +1,20 @@
 -module(digraphdot).
 -compile([export_all]).
 
--define( QUOTED(Val), $",Val,$"). 
+-define(QUOTED(Val), $",Val,$"). 
+-define(ROW(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
+-define(A_ROW(V1, V2), [atom_to_list(V1), "=", V2, ";\n"]).
 
 %%-type vertices() :: [mdigraph:vertex()].
 -type mdigraph() :: [mdigraph:mdigraph()].
 
--record(graph_attributes, {ratio = auto, ranksep = 0.75}).
+-record(graph_attributes, {ratio = "auto", ranksep = ".75"}).
+
+record_to_proplist(#graph_attributes{} = Rec) ->
+  lists:zip(record_info(fields, graph_attributes), tl(tuple_to_list(Rec))).
+
+%% dot -Tps graph54.dot -o graph54.ps
+
 
 init_graph() ->
     code:add_patha("/Users/romanshestakov/Development/erlang/ec/lib/digraphdot/ebin"),
@@ -17,20 +25,53 @@ init_graph() ->
     [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges],
     G.
 
--spec write_dot(mdigraph()) -> true.
-write_dot(G) ->
-    V = mdigraph_utils:topsort(G),
-    Dot_IO_List = write_dot(V, [["digraph ", "test", "{", "ratio =", ?QUOTED("auto"),  "\n"]], G),   
+-spec generate_dot(mdigraph()) -> true.
+generate_dot(G) ->
+    Graph = build_graph(G),
     %%Tmp = erlang:phash2(make_ref()),
+    Dot_IO_List = write_dot(Graph),   
     erlang:iolist_to_binary(Dot_IO_List),
-    file:write_file("graph52.dot", Dot_IO_List).
+    file:write_file("graph54.dot", Dot_IO_List).
 
-write_dot([], AllNodes, _G) ->
-    [AllNodes | "}\n"];
-write_dot([V | T], AllNodes,  G) ->
-    Neighbours = mdigraph:out_neighbours(G, V),
-    Nodes = lists:foldl(fun(V1, Acc) -> [?QUOTED(V), "->", ?QUOTED(V1), ";\n" | Acc] end, [], Neighbours),
-    write_dot(T, [AllNodes | Nodes], G).
+write_dot({{graph, {name, Name}, {attributes, Attrb}, {edges, Edges}}}) ->
+    Acc = write_dot({name, Name}, []),
+    Acc1 = write_dot({attributes, Attrb}, Acc),
+    write_dot({edges, Edges}, Acc1).
+
+
+write_dot({name, Name}, Acc) ->
+    [["digraph ", Name, "{\n"]];
+write_dot({attributes, Attrb}, Acc) ->
+    write_attr(record_to_proplist(Attrb), Acc);
+write_dot({edges, Edges}, Acc) ->
+    write_edges(Edges, Acc).
+
+
+%% writes edges
+write_edges([], Acc) ->
+    lists:reverse(["}\n" | Acc]);
+write_edges([{V1, V2} | T], Acc) ->
+    Row = ?ROW(V1, V2),
+    write_edges(T, [Row | Acc]).
+
+%% writes edges
+write_attr([], Acc) ->
+    Acc;
+write_attr([{V1, V2} | T], Acc) ->
+    Row = ?A_ROW(V1, V2),
+    write_attr(T, [Row | Acc]).
+
+
+%% build a graph representation from mdigraph or digraph
+-spec(build_graph(mdigraph() | digraph()) -> {{graph, {name}, {attributes}, {edges, []}}}).
+build_graph(G) ->
+    E = [get_node(mdigraph:edge(G, E)) || E <- mdigraph:edges(G)],
+    {{graph, {name, get_graph_name(G)}, {attributes, #graph_attributes{}}, {edges, E}}}.
+
+%% helper function used by build_graph  
+get_node({_E, V1, V2, _L}) ->
+    {V1, V2}.
+
 
 
 %%add_graph_attibutes(
@@ -81,8 +122,25 @@ loop(Port) ->
 	 {'EXIT', Port, Reason} ->
 	     exit({port_terminated, Reason})
      end.
+
+%% find out the type of the graph
+-spec graph_type(mdigraph() | digraph()) -> mdigraph | digraph.	     
+graph_type(G)->    
+    case element(1, G) of
+	mdigraph ->
+	    mdigraph;
+	digraph ->
+	    digraph
+    end.
     
 
+get_graph_name(G) ->
+    case graph_type(G) of
+	mdigraph ->
+	    "mdigraph";
+	digraph ->
+	    "digraph"
+    end.
 
 
 
