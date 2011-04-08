@@ -4,14 +4,14 @@
 -export([get_ps/1, 
 	 init_graph/0]).
 
--define(QUOTED(Val), $",Val,$"). 
+-define(QUOTED(Val), [$",Val,$"]). 
 -define(EDGE(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
 -define(ATTR(V1, V2), [atom_to_list(V1), "=", V2, ";\n"]).
 
 %%-type vertices() :: [mdigraph:vertex()].
 -type mdigraph() :: [mdigraph:mdigraph()].
-
--record(graph_attributes, {ratio = "auto", ranksep = ".75"}).
+%%[$","7.5, 7.5",$"]
+-record(graph_attributes, {ratio = "compress", ranksep = ".75", size = ?QUOTED("7.5, 7.5")}).
 
 record_to_proplist(#graph_attributes{} = Rec) ->
   lists:zip(record_info(fields, graph_attributes), tl(tuple_to_list(Rec))).
