@@ -1,5 +1,8 @@
 -module(digraphdot).
--compile([export_all]).
+%%-compile([export_all]).
+
+-export([get_ps/1, 
+	 init_graph/0]).
 
 -define(QUOTED(Val), $",Val,$"). 
 -define(EDGE(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
@@ -18,6 +21,7 @@ record_to_proplist(#graph_attributes{} = Rec) ->
 
 init_graph() ->
     code:add_patha("/Users/romanshestakov/Development/erlang/ec/lib/digraphdot/ebin"),
+    mnesia:start(),
     G = mdigraph:new(),
     Vertices = ["A", "B", "C", "D", "E", "F"],
     Edges =  [{"A", "B"}, {"A", "C"}, {"B", "D"}, {"C", "D"}, {"D", "E"}, {"E", "F"}],
@@ -29,9 +33,10 @@ init_graph() ->
 generate_dot(G) ->
     Graph = build_graph(G),
     %%Tmp = erlang:phash2(make_ref()),
-    Dot_IO_List = write_dot(Graph),   
-    erlang:iolist_to_binary(Dot_IO_List),
-    file:write_file("graph54.dot", Dot_IO_List).
+    Dot_IO_List = write_dot(Graph),
+    erlang:iolist_to_binary(Dot_IO_List).
+    %% file:write_file("graph54.dot", Dot_IO_List).
+
 
 write_dot({{graph, {name, Name}, {attributes, Attrb}, {edges, Edges}}}) ->
     Acc = write_dot({name, Name}, []),
@@ -40,7 +45,7 @@ write_dot({{graph, {name, Name}, {attributes, Attrb}, {edges, Edges}}}) ->
 
 
 write_dot({name, Name}, Acc) ->
-    [["digraph ", Name, "{\n"]];
+    [["digraph ", Name, "{\n"] | Acc];
 write_dot({attributes, Attrb}, Acc) ->
     write_attr(record_to_proplist(Attrb), Acc);
 write_dot({edges, Edges}, Acc) ->
@@ -74,55 +79,6 @@ get_node({_E, V1, V2, _L}) ->
 
 
 
-%%add_graph_attibutes(
-
-%%output_to_pdf(F) ->
-    
-%% -spec get_ps(mdigraph()) -> any().
-%% %% return graph in pdf format 
-get_ps(G) ->
-    D =  write_dot(G),
-    P = start(),
-    P ! {call, self(), D},
-    receive
-	{P, Result} ->
-	    Result
-    end,
-    stop(P).
-
-
-start() ->
-    spawn(fun() ->
-		  process_flag(trap_exit, true),
-		  Port = open_port({spawn, "dot -Tps -o test.ps"}, [stream]),
-		  io:format("opened port"),
-		  loop(Port)
-	  end).
-
-stop(P) ->
-    P ! stop.
-
-loop(Port) ->
-     receive
-	 {call, Caller, Msg} ->
-	     io:format("got date ~p ~n", [Msg]),
-	     Port ! {self(), {command, Msg}},
-	     receive
-		 {Port, {data, Data}} ->
-		     io:format("got from port ~p ~n", [Data]),
-		     Caller ! {self(), Data}
-	     end,
-	     loop(Port);
-	 stop ->
-	     Port ! {self() , close},
-	     receive
-		 {Port, closed} ->
-		     exit(normal)
-	     end;
-	 {'EXIT', Port, Reason} ->
-	     exit({port_terminated, Reason})
-     end.
-
 %% find out the type of the graph
 -spec graph_type(mdigraph() | digraph()) -> mdigraph | digraph.	     
 graph_type(G)->    
@@ -141,6 +97,55 @@ get_graph_name(G) ->
 	digraph ->
 	    "digraph"
     end.
+
+
+
+
+%%add_graph_attibutes(
+
+%%output_to_pdf(F) ->
+    
+%% -spec get_ps(mdigraph()) -> any().
+%% %% return graph in pdf format 
+get_ps(G) ->
+    Dot =  generate_dot(G),
+    Pid = start(),
+    Pid ! {call, self(), Dot}.
+%%    stop(Pid).
+
+
+start() ->
+    spawn(fun() ->
+		  process_flag(trap_exit, true),
+		  Port = open_port({spawn, "dot -Tps -O"}, [stream]),
+		  loop(Port)
+	  end).
+
+%% stop(P) ->
+%%     P ! stop.
+
+loop(Port) ->
+     receive
+	 {call, _Caller, Msg} ->
+	     %%io:format("got data to send to port ~p ~n", [Msg]),
+	     Port ! {self(), {command, Msg}}
+	     %% receive
+	     %% 	 {Port, {data, Data}} ->
+	     %% 	     io:format("got reply from port ~p ~n", [Data]),
+	     %% 	     Caller ! {self(), Data}
+	     %% end,
+	     %% loop(Port);
+	 %% stop ->
+ 	 %%     io:format("closing port ~n"),
+	 %%     Port ! {self(), close},
+	 %%     receive
+	 %% 	 {Port, closed} ->
+	 %% 	     exit(normal)
+	 %%     end;
+	 %% {'EXIT', Port, Reason} ->
+	 %%     exit({port_terminated, Reason})
+     end.
+
 
 
 
