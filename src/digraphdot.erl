@@ -1,8 +1,9 @@
 -module(digraphdot).
 %%-compile([export_all]).
 
--export([get_ps/1, 
-	 init_graph/0]).
+-export([get_svg/1, 
+	 init_graph/0, 
+	 generate_dot/1]).
 
 -define(QUOTED(Val), [$",Val,$"]). 
 -define(EDGE(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
@@ -107,17 +108,21 @@ get_graph_name(G) ->
     
 %% -spec get_ps(mdigraph()) -> any().
 %% %% return graph in pdf format 
-get_ps(G) ->
+get_svg(G) ->
     Dot =  generate_dot(G),
     Pid = start(),
-    Pid ! {call, self(), Dot}.
+    Pid ! {call, self(), Dot},
+    receive
+	{_P, Data} ->
+	    Data
+    end.
 %%    stop(Pid).
 
 
 start() ->
     spawn(fun() ->
 		  process_flag(trap_exit, true),
-		  Port = open_port({spawn, "dot -Tps -O"}, [stream]),
+		  Port = open_port({spawn, "dot -Tsvg"}, [stream]),
 		  loop(Port)
 	  end).
 
@@ -126,24 +131,24 @@ start() ->
 
 loop(Port) ->
      receive
-	 {call, _Caller, Msg} ->
+	 {call, Caller, Msg} ->
 	     %%io:format("got data to send to port ~p ~n", [Msg]),
-	     Port ! {self(), {command, Msg}}
-	     %% receive
-	     %% 	 {Port, {data, Data}} ->
-	     %% 	     io:format("got reply from port ~p ~n", [Data]),
-	     %% 	     Caller ! {self(), Data}
-	     %% end,
-	     %% loop(Port);
-	 %% stop ->
- 	 %%     io:format("closing port ~n"),
-	 %%     Port ! {self(), close},
-	 %%     receive
-	 %% 	 {Port, closed} ->
-	 %% 	     exit(normal)
-	 %%     end;
-	 %% {'EXIT', Port, Reason} ->
-	 %%     exit({port_terminated, Reason})
+	     Port ! {self(), {command, Msg}},
+	     receive
+	     	 {Port, {data, Data}} ->
+	     	     %%io:format("got reply from port ~p ~n", [Data]),
+	     	     Caller ! {self(), Data}
+	     end,
+	     loop(Port);
+	 stop ->
+ 	     io:format("closing port ~n"),
+	     Port ! {self(), close},
+	     receive
+	 	 {Port, closed} ->
+	 	     exit(normal)
+	     end;
+	 {'EXIT', Port, Reason} ->
+	     exit({port_terminated, Reason})
      end.
 
 
