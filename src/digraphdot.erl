@@ -12,6 +12,7 @@
 -define(C, ["C~0","C~1","C~2","C~3","C~4","C~5","C~6","C~7","C~8","C~9","C~10","C~11","C~12","C~13","C~14","C~15","C~16","C~17","C~18","C~19","C~20","C~21","C~22","C~23","C~24","C~25","C~26","C~27","C~28","C~29","C~30","C~31","C~32","C~33","C~34","C~35","C~36","C~37","C~38","C~39","C~40","C~41","C~42","C~43","C~44","C~45","C~46","C~47","C~48","C~49","C~50","C~51","C~52","C~53","C~54","C~55","C~56","C~57","C~58","C~59"]).
 
 
+
 %%-type vertices() :: [mdigraph:vertex()].
 -type mdigraph() :: [mdigraph:mdigraph()].
 %%[$","7.5, 7.5",$"]
@@ -21,6 +22,7 @@ record_to_proplist(#graph_attributes{} = Rec) ->
   lists:zip(record_info(fields, graph_attributes), tl(tuple_to_list(Rec))).
 
 %% dot -Tps graph54.dot -o graph54.ps
+
 
 init_graph() ->
     code:add_patha("/Users/romanshestakov/Development/erlang/ec/lib/digraphdot/ebin"),
@@ -32,14 +34,13 @@ init_graph() ->
     [mdigraph:add_edge(G, V1, V2) || {V1, V2} <- Edges],
     G.
 
-
 -spec generate_dot(mdigraph()) -> true.
 generate_dot(G) ->
     Graph = build_graph(G),
     %%Tmp = erlang:phash2(make_ref()),
     Dot_IO_List = write_dot(Graph),
     erlang:iolist_to_binary(Dot_IO_List).
-%%    file:write_file("graph54.dot", Dot_IO_List).
+    %% file:write_file("graph54.dot", Dot_IO_List).
 
 
 write_dot({{graph, {name, Name}, {attributes, Attrb}, {edges, Edges}}}) ->
@@ -114,10 +115,10 @@ get_graph_name(G) ->
 get_svg(G) ->
     Dot =  generate_dot(G),
     Pid = start(),
-    Pid ! {call, self(), term_to_binary(Dot)},
+    Pid ! {call, self(), Dot},
     receive
-    	{_P, Data} ->
-    	    Data
+	{_P, Data} ->
+	    Data
     end.
 %%    stop(Pid).
 
@@ -125,7 +126,7 @@ get_svg(G) ->
 start() ->
     spawn(fun() ->
 		  process_flag(trap_exit, true),
-		  Port = open_port({spawn, "dot -Tsvg"}, [stream, binary, exit_status]),
+		  Port = open_port({spawn, "dot -Tsvg"}, [stream, exit_status]),
 		  loop(Port)
 	  end).
 
@@ -136,13 +137,11 @@ loop(Port) ->
      receive
 	 {call, Caller, Msg} ->
 	     %%io:format("got data to send to port ~p ~n", [Msg]),
-	     %%Port ! {self(), {command, Msg}},
-	     erlang:port_command(Port, binary_to_term(Msg)),
+	     Port ! {self(), {command, Msg}},
 	     receive
 	     	 {Port, {data, Data}} ->
-	     	     Caller ! {self(), Data};
-		 {Port, {exit_status, Status}} ->
-		     io:format("port terminated ~p ~n", [Status])
+	     	     %%io:format("got reply from port ~p ~n", [Data]),
+	     	     Caller ! {self(), Data}
 	     end,
 	     loop(Port);
 	 stop ->
@@ -155,18 +154,6 @@ loop(Port) ->
 	 {'EXIT', Port, Reason} ->
 	     exit({port_terminated, Reason})
      end.
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
