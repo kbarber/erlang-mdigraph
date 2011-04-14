@@ -9,6 +9,10 @@
 -define(EDGE(V1, V2), [?QUOTED(V1), "->", ?QUOTED(V2), ";\n"]).
 -define(ATTR(V1, V2), [atom_to_list(V1), "=", V2, ";\n"]).
 
+%%-define(SHELL, "/bin/sh -s unix:cmd dot -Tsvg 2>&1").
+-define(SHELL, "dot -Tsvg").
+-define(PORT_CREATOR_NAME, os_cmd_port_creator).
+
 -define(C, ["C~0","C~1","C~2","C~3","C~4","C~5","C~6","C~7","C~8","C~9","C~10","C~11","C~12","C~13","C~14","C~15","C~16","C~17","C~18","C~19","C~20","C~21","C~22","C~23","C~24","C~25","C~26","C~27","C~28","C~29","C~30","C~31","C~32","C~33","C~34","C~35","C~36","C~37","C~38","C~39","C~40","C~41","C~42","C~43","C~44","C~45","C~46","C~47","C~48","C~49","C~50","C~51","C~52","C~53","C~54","C~55","C~56","C~57","C~58","C~59"]).
 
 
@@ -114,50 +118,25 @@ get_graph_name(G) ->
 %% %% return graph in pdf format 
 get_svg(G) ->
     Dot =  generate_dot(G),
-    Pid = start(),
-    Pid ! {call, self(), Dot},
-    receive
-	{_P, Data} ->
-	    Data
-    end.
-%%    stop(Pid).
+    Cmd = "dot -Tsvg",
+    Opt = [stream, exit_status, use_stdio, stderr_to_stdout, eof],
+    Port = open_port({spawn, Cmd}, Opt),
+    port_command(Port, Dot),
+    get_data(Port, []).
 
-
-start() ->
-    spawn(fun() ->
-		  process_flag(trap_exit, true),
-		  Port = open_port({spawn, "dot -Tsvg"}, [stream, exit_status]),
-		  loop(Port)
-	  end).
-
-%% stop(P) ->
-%%     P ! stop.
-
-loop(Port) ->
+get_data(P, D) ->
      receive
-	 {call, Caller, Msg} ->
-	     %%io:format("got data to send to port ~p ~n", [Msg]),
-	     Port ! {self(), {command, Msg}},
-	     receive
-	     	 {Port, {data, Data}} ->
-	     	     %%io:format("got reply from port ~p ~n", [Data]),
-	     	     Caller ! {self(), Data}
-	     end,
-	     loop(Port);
-	 stop ->
- 	     io:format("closing port ~n"),
-	     Port ! {self(), close},
-	     receive
-	 	 {Port, closed} ->
-	 	     exit(normal)
-	     end;
-	 {'EXIT', Port, Reason} ->
-	     exit({port_terminated, Reason})
+         {P, {data, D1}} ->
+	     %%io:format("~p", [D1]),
+             get_data(P, [D1 | D])
+         %% {P, eof} ->
+         %%     port_close(P),
+         %%     receive
+         %%         {P, {exit_status, N}} ->
+         %%             {N, lists:reverse(D)}
+         %%     end
+     after 100 ->
+	     port_close(P),
+	     lists:reverse(D)
      end.
-
-
-
-
-
-
 
