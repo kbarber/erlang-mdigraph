@@ -1,14 +1,8 @@
 {application, mdigraph,
  [{description, "This is an Mnesia implementation of the core Erlang module 'digraph' from stdlib."},
   {vsn, "1.0"},
-  {modules, [
-	     mdigraph,
-	     mdigraph_utils,
-	     digraphdot
-	    ]},
+  {modules, [mdigraph,mdigraph_utils,digraphdot]},
   {registered, []},
   {applications, [kernel, stdlib, mnesia]},
-  {mod, {}},
-  {start_phases, []},
   {env, []}
  ]}.
