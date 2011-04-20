@@ -6,9 +6,7 @@
 	     mdigraph_utils,
 	     digraphdot
 	    ]},
-  {registered, []},
   {applications, [kernel, stdlib, mnesia]},
-  {mod, {}},
-  {start_phases, []},
-  {env, []}
+  {registered, [ ] },
+  {env, []}	 
  ]}.
