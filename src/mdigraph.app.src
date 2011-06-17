@@ -3,8 +3,7 @@
   {vsn, "1.0"},
   {modules, [
 	     mdigraph,
-	     mdigraph_utils,
-	     digraphdot
+	     mdigraph_utils
 	    ]},
   {applications, [kernel, stdlib, mnesia]},
   {registered, [ ] },
