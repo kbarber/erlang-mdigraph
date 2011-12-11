@@ -45,7 +45,7 @@
 %% record and the types of its fields.  So, please make sure that any
 %% changes to its structure are also propagated to erl_types.erl.
 %%
--opaque mdigraph() :: #mdigraph{}.
+-type mdigraph() :: #mdigraph{}.
 
 -type edge()    :: term().
 -type label()   :: term().
@@ -69,7 +69,8 @@
 -spec new() -> mdigraph().
 new() -> new([]).
 
--spec new([d_type()]) -> mdigraph().
+-spec new(Type) -> mdigraph() when
+      Type :: [d_type()].
 new(Type) ->
     new(get_random_string(10, "abcdef01234567890"), Type).
 
@@ -557,7 +558,12 @@ get_short_cycle(G, V) ->
 %% Like get_path/3, but using a breadth-first search makes it possible
 %% to find a short path.
 %%
--spec get_short_path(mdigraph(), vertex(), vertex()) -> [vertex(),...] | 'false'.
+-spec get_short_path(G, V1, V2) -> Vertices | 'false' when
+      G :: mdigraph(),
+      V1 :: vertex(),
+      V2 :: vertex(),
+      Vertices :: [vertex(),...].
+
 get_short_path(G, V1, V2) ->
     T = new(),
     add_vertex(T, V1),
