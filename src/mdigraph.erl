@@ -45,7 +45,7 @@
 %% record and the types of its fields.  So, please make sure that any
 %% changes to its structure are also propagated to erl_types.erl.
 %%
--type mdigraph() :: #mdigraph{}.
+-opaque mdigraph() :: #mdigraph{}.
 
 -type edge()    :: term().
 -type label()   :: term().
