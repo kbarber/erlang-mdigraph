@@ -39,7 +39,7 @@
 %%
 
 -type vertices() :: [mdigraph:vertex()].
--type mdigraph() :: [mdigraph:mdigraph()].
+-type mdigraph() :: mdigraph:mdigraph().
 
 %%
 %%  Exported functions
