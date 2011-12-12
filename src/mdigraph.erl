@@ -36,9 +36,9 @@
 
 -export_type([mdigraph/0, d_type/0, vertex/0]).
 
--record(mdigraph, {vtab = notable :: mnesia:tab(),
-		   etab = notable :: mnesia:tab(),
-		   ntab = notable :: mnesia:tab(),
+-record(mdigraph, {vtab = notable :: atom(),
+		   etab = notable :: atom(),
+		   ntab = notable :: atom(),
 		   cyclic = true  :: boolean()}).
 %% A declaration equivalent to the following one is hard-coded in erl_types.
 %% That declaration contains hard-coded information about the #digraph{}
@@ -69,8 +69,7 @@
 -spec new() -> mdigraph().
 new() -> new([]).
 
--spec new(Type) -> mdigraph() when
-      Type :: [d_type()].
+-spec new(Type) -> mdigraph() when Type :: [d_type()].
 new(Type) ->
     new(get_random_string(10, "abcdef01234567890"), Type).
 
@@ -108,8 +107,8 @@ get_random_string(Length, AllowedChars) ->
 %%
 %% Check type of graph
 %%
--spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
-      	{d_protection(), [{'cyclic', boolean()}]}.
+%% -spec check_type([d_type()], d_protection(), [{'cyclic', boolean()}]) ->
+%%       	{d_protection(), [{'cyclic', boolean()}]}.
 check_type([acyclic|Ts], A, L) ->
     check_type(Ts, A,[{cyclic,false} | L]);
 check_type([cyclic | Ts], A, L) ->
@@ -177,7 +176,7 @@ del_vertex(G, V) ->
     case do_del_vertex(V, G) of
 	{atomic, ok} ->
 	    true;
-	{abort, Reason} ->
+	{aborted, Reason} ->
 	    {abort, Reason}
     end.
 
@@ -279,7 +278,7 @@ del_edge(G, E) ->
 del_edges(G, Es) ->
     do_del_edges(Es, G).
 
--spec no_edges(digraph()) -> non_neg_integer().
+-spec no_edges(mdigraph()) -> non_neg_integer().
 no_edges(G) ->
     mnesia:table_info(G#mdigraph.etab, size).
 
